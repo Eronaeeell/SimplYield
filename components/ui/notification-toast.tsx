@@ -24,7 +24,7 @@ export function NotificationToast({
   isVisible,
   onClose,
   duration = 5000,
-  position = "top-right",
+  position = "bottom-right",
 }: NotificationToastProps) {
   React.useEffect(() => {
     if (isVisible) {
@@ -74,32 +74,79 @@ export function NotificationToast({
     }
   }
 
+  // Animation variants based on position
+  const getAnimationVariants = () => {
+    if (position === "bottom-right") {
+      return {
+        initial: { opacity: 0, y: 20, x: 20, scale: 0.95 },
+        animate: {
+          opacity: 1,
+          y: 0,
+          x: 0,
+          scale: 1,
+          transition: {
+            type: "spring",
+            stiffness: 400,
+            damping: 25,
+            mass: 0.8,
+          },
+        },
+        exit: {
+          opacity: 0,
+          y: 10,
+          x: 20,
+          scale: 0.95,
+          transition: {
+            duration: 0.2,
+            ease: "easeOut",
+          },
+        },
+      }
+    }
+
+    // Default animations for other positions
+    return {
+      initial: { opacity: 0, y: position.startsWith("top") ? -20 : 20, x: position.endsWith("right") ? 20 : -20 },
+      animate: { opacity: 1, y: 0, x: 0 },
+      exit: { opacity: 0, y: position.startsWith("top") ? -20 : 20, x: position.endsWith("right") ? 20 : -20 },
+    }
+  }
+
+  const variants = getAnimationVariants()
+
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.div
           className={cn("fixed z-50 max-w-md", getPositionClasses())}
-          initial={{ opacity: 0, y: position.startsWith("top") ? -20 : 20, x: position.endsWith("right") ? 20 : -20 }}
-          animate={{ opacity: 1, y: 0, x: 0 }}
-          exit={{ opacity: 0, y: position.startsWith("top") ? -20 : 20, x: position.endsWith("right") ? 20 : -20 }}
-          transition={{ duration: 0.3 }}
+          initial={variants.initial}
+          animate={variants.animate}
+          exit={variants.exit}
         >
-          <div className={cn("rounded-lg border p-4 shadow-lg backdrop-blur-sm", getBgColor())}>
+          <motion.div
+            className={cn("rounded-lg border p-4 shadow-lg backdrop-blur-sm", getBgColor())}
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.2 }}
+            whileHover={{ scale: 1.02 }}
+          >
             <div className="flex items-start">
               <div className="flex-shrink-0">{getIcon()}</div>
               <div className="ml-3 flex-1">
                 <p className="text-sm font-medium text-white">{title}</p>
                 <p className="mt-1 text-sm text-gray-300">{message}</p>
               </div>
-              <button
+              <motion.button
                 type="button"
                 className="ml-4 inline-flex text-gray-400 hover:text-gray-300 focus:outline-none"
                 onClick={onClose}
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileTap={{ scale: 0.9 }}
               >
                 <X className="h-5 w-5" />
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

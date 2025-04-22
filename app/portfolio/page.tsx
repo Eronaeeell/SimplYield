@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
   BarChart2,
@@ -30,6 +30,7 @@ import { PageTransition } from "@/components/ui/page-transition"
 import { NotificationToast } from "@/components/ui/notification-toast"
 
 export default function PortfolioPage() {
+  const router = useRouter()
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showToast, setShowToast] = useState(false)
@@ -201,6 +202,10 @@ export default function PortfolioPage() {
     visible: { opacity: 1, y: 0 },
   }
 
+  const handleGoBack = () => {
+    router.back()
+  }
+
   return (
     <PageTransition>
       <main className="min-h-screen bg-gray-900 text-white">
@@ -213,15 +218,14 @@ export default function PortfolioPage() {
             transition={{ duration: 0.5 }}
           >
             <div className="flex items-center gap-3">
-              <Link href="/">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full border-gray-700 hover:bg-gray-800 transition-all duration-300 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full border-gray-700 hover:bg-gray-800 transition-all duration-300 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20"
+                onClick={handleGoBack}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
               <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 tracking-tight">
                 Portfolio
               </h1>
@@ -313,7 +317,7 @@ export default function PortfolioPage() {
                         setToastMessage({
                           type: "info",
                           title: `${data.name} Selected`,
-                          message: `${data.name} represents ${data.percentage}% of your portfolio with a value of $${data.value.toLocaleString()}.`,
+                          message: `${data.name} represents ${data.percentage}% of your portfolio with a value of ${data.value.toLocaleString()}.`,
                         })
                         setShowToast(true)
                       }}
@@ -678,7 +682,7 @@ export default function PortfolioPage() {
           message={toastMessage.message}
           isVisible={showToast}
           onClose={() => setShowToast(false)}
-          position="top-right"
+          position="bottom-right"
         />
       </main>
     </PageTransition>

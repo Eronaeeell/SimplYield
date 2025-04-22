@@ -762,7 +762,7 @@ export default function Home() {
           message={notification.message}
           isVisible={showNotification}
           onClose={() => setShowNotification(false)}
-          position="top-right"
+          position="bottom-right"
         />
 
         <style jsx global>{`
