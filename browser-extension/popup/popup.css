@@ -1,0 +1,354 @@
+/* Base Styles */
+:root {
+    --primary-color: #8A8FFF;
+    --secondary-color: #6C67DC;
+    --background-color: #131626;
+    --card-background: #1C1E33;
+    --text-color: #FFFFFF;
+    --text-secondary: #A0A0B0;
+    --success-color: #4CAF50;
+    --up-color: #4CAF50;
+    --down-color: #F44336;
+    --swap-color: #2196F3;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+  
+  body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    min-width: 350px;
+    min-height: 500px;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  
+  .container {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  /* Header */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  h1 {
+    font-size: 20px;
+    color: var(--primary-color);
+    font-weight: bold;
+  }
+  
+  .wallet-status {
+    display: flex;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+  }
+  
+  .status-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: var(--success-color);
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  /* Transaction Alert */
+  .hidden {
+    display: none;
+  }
+  
+  .alert-container {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .alert-icon {
+    margin-right: 16px;
+    background-color: rgba(138, 143, 255, 0.1);
+    padding: 8px;
+    border-radius: 50%;
+  }
+  
+  .alert-content h2 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .alert-content p {
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+  
+  /* Staking Options */
+  .staking-options {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .staking-options h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  
+  .percentage-options {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  
+  .percentage-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .percentage-btn:hover, .percentage-btn.active {
+    background-color: var(--primary-color);
+  }
+  
+  .custom-percentage {
+    margin-bottom: 20px;
+  }
+  
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    border-radius: 3px;
+    margin-bottom: 10px;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+  }
+  
+  .range-value {
+    font-size: 14px;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+  
+  .action-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  
+  .primary-btn, .secondary-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  
+  .primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
+  .secondary-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+  }
+  
+  /* Assistant Chat */
+  .assistant-chat {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .message {
+    display: flex;
+    margin-bottom: 16px;
+  }
+  
+  .message:last-child {
+    margin-bottom: 0;
+  }
+  
+  .message-icon {
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  
+  .message-content {
+    flex: 1;
+  }
+  
+  .message-content p {
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  
+  .timestamp {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  
+  /* Transactions Section */
+  .transactions-section {
+    margin-bottom: 16px;
+  }
+  
+  .transactions-section h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .transaction-list {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+  }
+  
+  .transaction-item {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .transaction-item:last-child {
+    border-bottom: none;
+  }
+  
+  .transaction-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  
+  .transaction-icon.up {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--up-color);
+  }
+  
+  .transaction-icon.down {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: var(--down-color);
+  }
+  
+  .transaction-icon.swap {
+    background-color: rgba(33, 150, 243, 0.1);
+    color: var(--swap-color);
+  }
+  
+  .transaction-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .transaction-title {
+    font-size: 14px;
+  }
+  
+  .transaction-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  
+  .transaction-status {
+    text-align: right;
+    font-size: 12px;
+  }
+  
+  .status {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    text-transform: lowercase;
+    margin-bottom: 4px;
+  }
+  
+  .status.completed {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--up-color);
+  }
+  
+  .transaction-id {
+    color: var(--text-secondary);
+  }
+  
+  /* Suggested Commands */
+  .suggested-commands {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  
+  .command-btn {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s;
+  }
+  
+  .command-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .command-btn svg {
+    margin-right: 6px;
+  }
