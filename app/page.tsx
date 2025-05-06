@@ -12,6 +12,11 @@ import { AnimatedGradientButton } from "@/components/ui/animated-gradient-button
 import { AnimatedCard } from "@/components/ui/animated-card"
 import { PageTransition } from "@/components/ui/page-transition"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import {
+    WalletModalProvider,
+    WalletDisconnectButton,
+    WalletMultiButton
+} from '@solana/wallet-adapter-react-ui';
 
 export default function Home() {
   const router = useRouter()
@@ -521,169 +526,173 @@ export default function Home() {
         {/* Wallet Connection Modal */}
         <AnimatePresence>
           {walletModalOpen && (
+            <><>
+              <WalletMultiButton />
+              <WalletDisconnectButton />
+            </>
             <Dialog open={walletModalOpen} onOpenChange={setWalletModalOpen}>
-              <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-md">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <DialogHeader>
-                    <DialogTitle className="text-center text-2xl">Connect Your Wallet</DialogTitle>
-                    <DialogDescription className="text-center text-gray-400">
-                      Choose your preferred wallet to connect to SimplYield
-                    </DialogDescription>
-                  </DialogHeader>
+                <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-md">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle className="text-center text-2xl">Connect Your Wallet</DialogTitle>
+                      <DialogDescription className="text-center text-gray-400">
+                        Choose your preferred wallet to connect to SimplYield
+                      </DialogDescription>
+                    </DialogHeader>
 
-                  <div className="py-4">
-                    <Tabs defaultValue="phantom" className="w-full" onValueChange={setSelectedWallet}>
-                      <TabsList className="grid grid-cols-3 mb-4">
-                        <TabsTrigger
-                          value="phantom"
-                          className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-300"
-                        >
-                          Phantom
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="solflare"
-                          className="data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all duration-300"
-                        >
-                          Solflare
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="other"
-                          className="data-[state=active]:bg-gray-600 data-[state=active]:text-white transition-all duration-300"
-                        >
-                          Other
-                        </TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="phantom" className="space-y-4">
-                        <motion.div
-                          className="flex justify-center py-6"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <motion.div
-                            className="p-6 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg"
-                            whileHover={{ scale: 1.05, rotate: 5 }}
-                            whileTap={{ scale: 0.95 }}
+                    <div className="py-4">
+                      <Tabs defaultValue="phantom" className="w-full" onValueChange={setSelectedWallet}>
+                        <TabsList className="grid grid-cols-3 mb-4">
+                          <TabsTrigger
+                            value="phantom"
+                            className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-300"
                           >
-                            <Wallet className="h-14 w-14 text-white" />
-                          </motion.div>
-                        </motion.div>
-                        <AnimatedGradientButton
-                          gradientFrom="#9333ea"
-                          gradientTo="#4f46e5"
-                          hoverGradientFrom="#7e22ce"
-                          hoverGradientTo="#4338ca"
-                          className="w-full h-12"
-                          onClick={handleConnectWallet}
-                          disabled={connectingWallet}
-                        >
-                          {connectingWallet ? (
-                            <div className="flex items-center">
-                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                              Connecting...
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center">
-                              Connect Phantom Wallet
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </div>
-                          )}
-                        </AnimatedGradientButton>
-                      </TabsContent>
-
-                      <TabsContent value="solflare" className="space-y-4">
-                        <motion.div
-                          className="flex justify-center py-6"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <motion.div
-                            className="p-6 rounded-full bg-gradient-to-br from-orange-500 to-red-600 shadow-lg"
-                            whileHover={{ scale: 1.05, rotate: 5 }}
-                            whileTap={{ scale: 0.95 }}
+                            Phantom
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="solflare"
+                            className="data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all duration-300"
                           >
-                            <Wallet className="h-14 w-14 text-white" />
-                          </motion.div>
-                        </motion.div>
-                        <AnimatedGradientButton
-                          gradientFrom="#f97316"
-                          gradientTo="#dc2626"
-                          hoverGradientFrom="#ea580c"
-                          hoverGradientTo="#b91c1c"
-                          className="w-full h-12"
-                          onClick={handleConnectWallet}
-                          disabled={connectingWallet}
-                        >
-                          {connectingWallet ? (
-                            <div className="flex items-center">
-                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                              Connecting...
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center">
-                              Connect Solflare Wallet
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </div>
-                          )}
-                        </AnimatedGradientButton>
-                      </TabsContent>
-
-                      <TabsContent value="other" className="space-y-4">
-                        <motion.div
-                          className="flex justify-center py-6"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <motion.div
-                            className="p-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 shadow-lg"
-                            whileHover={{ scale: 1.05, rotate: 5 }}
-                            whileTap={{ scale: 0.95 }}
+                            Solflare
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="other"
+                            className="data-[state=active]:bg-gray-600 data-[state=active]:text-white transition-all duration-300"
                           >
-                            <Wallet className="h-14 w-14 text-white" />
-                          </motion.div>
-                        </motion.div>
-                        <AnimatedGradientButton
-                          gradientFrom="#4b5563"
-                          gradientTo="#1f2937"
-                          hoverGradientFrom="#374151"
-                          hoverGradientTo="#111827"
-                          className="w-full h-12"
-                          onClick={handleConnectWallet}
-                          disabled={connectingWallet}
-                        >
-                          {connectingWallet ? (
-                            <div className="flex items-center">
-                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                              Connecting...
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center">
-                              Connect Other Wallet
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </div>
-                          )}
-                        </AnimatedGradientButton>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
+                            Other
+                          </TabsTrigger>
+                        </TabsList>
 
-                  <div className="flex justify-center">
-                    <div className="flex items-start space-x-2 text-xs text-gray-400">
-                      <Shield className="h-4 w-4 text-gray-500 mt-0.5" />
-                      <p>Your connection is secure and you'll be able to disconnect your wallet at any time</p>
+                        <TabsContent value="phantom" className="space-y-4">
+                          <motion.div
+                            className="flex justify-center py-6"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                          >
+                            <motion.div
+                              className="p-6 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg"
+                              whileHover={{ scale: 1.05, rotate: 5 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <Wallet className="h-14 w-14 text-white" />
+                            </motion.div>
+                          </motion.div>
+                          <AnimatedGradientButton
+                            gradientFrom="#9333ea"
+                            gradientTo="#4f46e5"
+                            hoverGradientFrom="#7e22ce"
+                            hoverGradientTo="#4338ca"
+                            className="w-full h-12"
+                            onClick={handleConnectWallet}
+                            disabled={connectingWallet}
+                          >
+                            {connectingWallet ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                                Connecting...
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center">
+                                Connect Phantom Wallet
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                              </div>
+                            )}
+                          </AnimatedGradientButton>
+                        </TabsContent>
+
+                        <TabsContent value="solflare" className="space-y-4">
+                          <motion.div
+                            className="flex justify-center py-6"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                          >
+                            <motion.div
+                              className="p-6 rounded-full bg-gradient-to-br from-orange-500 to-red-600 shadow-lg"
+                              whileHover={{ scale: 1.05, rotate: 5 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <Wallet className="h-14 w-14 text-white" />
+                            </motion.div>
+                          </motion.div>
+                          <AnimatedGradientButton
+                            gradientFrom="#f97316"
+                            gradientTo="#dc2626"
+                            hoverGradientFrom="#ea580c"
+                            hoverGradientTo="#b91c1c"
+                            className="w-full h-12"
+                            onClick={handleConnectWallet}
+                            disabled={connectingWallet}
+                          >
+                            {connectingWallet ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                                Connecting...
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center">
+                                Connect Solflare Wallet
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                              </div>
+                            )}
+                          </AnimatedGradientButton>
+                        </TabsContent>
+
+                        <TabsContent value="other" className="space-y-4">
+                          <motion.div
+                            className="flex justify-center py-6"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                          >
+                            <motion.div
+                              className="p-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 shadow-lg"
+                              whileHover={{ scale: 1.05, rotate: 5 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <Wallet className="h-14 w-14 text-white" />
+                            </motion.div>
+                          </motion.div>
+                          <AnimatedGradientButton
+                            gradientFrom="#4b5563"
+                            gradientTo="#1f2937"
+                            hoverGradientFrom="#374151"
+                            hoverGradientTo="#111827"
+                            className="w-full h-12"
+                            onClick={handleConnectWallet}
+                            disabled={connectingWallet}
+                          >
+                            {connectingWallet ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                                Connecting...
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center">
+                                Connect Other Wallet
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                              </div>
+                            )}
+                          </AnimatedGradientButton>
+                        </TabsContent>
+                      </Tabs>
                     </div>
-                  </div>
-                </motion.div>
-              </DialogContent>
-            </Dialog>
+
+                    <div className="flex justify-center">
+                      <div className="flex items-start space-x-2 text-xs text-gray-400">
+                        <Shield className="h-4 w-4 text-gray-500 mt-0.5" />
+                        <p>Your connection is secure and you'll be able to disconnect your wallet at any time</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </DialogContent>
+              </Dialog></>
           )}
         </AnimatePresence>
 
