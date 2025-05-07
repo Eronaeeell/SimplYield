@@ -32,7 +32,7 @@ export const Walletsc: FC<Props> = ({children}) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [network]
     );
-
+    
     return (
         <ConnectionProvider endpoint={endpoint}>
             <WalletProvider wallets={wallets} autoConnect>

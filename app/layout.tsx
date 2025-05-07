@@ -23,12 +23,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-      <Walletsc>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <Walletsc>
           {children}
+          </Walletsc>
           <Toaster />
         </ThemeProvider>
-        </Walletsc>
       </body>
     </html>
   )
