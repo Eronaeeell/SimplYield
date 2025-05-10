@@ -12,13 +12,12 @@ import { PageTransition } from "@/components/ui/page-transition";
 
 export default function Home() {
   const router = useRouter();
-  const { connected, publicKey, disconnect, connect } = useWallet(); // Solana wallet hooks
+  const { connected, publicKey, disconnect, connect } = useWallet();
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showNotification, setShowNotification] = useState(false);
   const [notification, setNotification] = useState({ type: "success", title: "", message: "" });
 
-  // Effect to update wallet address
   useEffect(() => {
     if (connected && publicKey) {
       setWalletAddress(publicKey.toString());
@@ -27,7 +26,6 @@ export default function Home() {
     }
   }, [connected, publicKey]);
 
-  // Handle connection to wallet
   const handleConnectWallet = () => {
     connect().catch(() => {
       setNotification({
@@ -39,23 +37,21 @@ export default function Home() {
     });
   };
 
-  // Handle message submission for staking
+  // Handle message submission for staking (only used for recording transactions)
   const handleMessageSubmit = (message: string) => {
     if (message.toLowerCase().includes("stake")) {
       const amount = message.match(/\d+/)?.[0] || "0";
       const coin = message.toLowerCase().includes("sol") ? "SOL" : "ETH";
 
-      // Create transaction object
       const newTransaction = {
         id: Date.now().toString(),
         type: "stake",
-        amount: amount,
-        coin: coin,
+        amount,
+        coin,
         status: "processing",
         timestamp: new Date().toISOString(),
       };
 
-      // Show processing notification
       setNotification({
         type: "info",
         title: "Transaction Processing",
@@ -63,12 +59,10 @@ export default function Home() {
       });
       setShowNotification(true);
 
-      // Simulate transaction completion after 2 seconds
       setTimeout(() => {
         newTransaction.status = "completed";
         setTransactions((prev) => [newTransaction, ...prev]);
 
-        // Show success notification
         setNotification({
           type: "success",
           title: "Transaction Completed",
@@ -107,15 +101,12 @@ export default function Home() {
 
           <motion.div className="container mx-auto p-4 flex flex-col md:flex-row gap-4 flex-grow">
             <motion.div className="flex-grow flex flex-col">
-              <ChatInterface onMessageSubmit={handleMessageSubmit} />
+              <ChatInterface />
             </motion.div>
 
             <motion.div className="w-full md:w-96 lg:w-[28rem] space-y-4">
               <motion.div className="relative group">
-                {/* Background glow effect */}
                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
-
-                {/* Button with glass effect */}
                 <button
                   className="relative w-full py-3 text-base font-medium flex items-center justify-center gap-3 rounded-xl overflow-hidden z-10"
                   onClick={() => router.push("/portfolio")}
@@ -133,7 +124,6 @@ export default function Home() {
             </motion.div>
           </motion.div>
 
-          {/* Notification Toast */}
           <NotificationToast
             type={notification.type as "success" | "error" | "info" | "warning"}
             title={notification.title}
@@ -147,11 +137,9 @@ export default function Home() {
     );
   }
 
-  // If wallet is not connected, show the connect wallet option
   return (
     <PageTransition>
       <main className="min-h-screen bg-gray-900 text-white">
-        {/* Hero Section */}
         <div className="relative min-h-screen flex items-center">
           <div className="container mx-auto px-4 py-12 relative z-10">
             <motion.div
@@ -164,7 +152,6 @@ export default function Home() {
               <p className="text-xl text-gray-300 mb-8 leading-relaxed">
                 SimplYield transforms complex DeFi operations into simple conversations.
               </p>
-
               <motion.div className="flex justify-center gap-4">
                 <WalletMultiButton className="px-4 py-2 rounded-lg text-base shadow-lg" onClick={handleConnectWallet}>
                   Connect Wallet
