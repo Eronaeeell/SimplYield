@@ -18,6 +18,9 @@ import {
   Wallet,
 } from "lucide-react"
 
+const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
+const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
+
 type Message = {
   id: string
   content: string
@@ -54,6 +57,13 @@ export function ChatInterface() {
     },
   ]
 
+  const predefinedResponses: Record<string, string> = {
+    "Stake 5 SOL": "Processing your request to stake 5 SOL. Transaction initiated...",
+    "Show my portfolio": "I've analyzed your portfolio. You currently have assets across multiple pools with a total value of 245.32 SOL.",
+    "Swap 10 USDC to SOL": "I'm preparing a swap transaction for you. Let me find the best rates...",
+    "What's my balance?": "Your current balance is 245.32 SOL ($24,532.00).",
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -65,7 +75,6 @@ export function ChatInterface() {
   const handleSendMessage = async () => {
     if (!input.trim()) return
 
-    // 1) Add the user message
     const userMessage: Message = {
       id: Date.now().toString(),
       content: input,
@@ -77,7 +86,39 @@ export function ChatInterface() {
     setInput("")
     setIsTyping(true)
 
-    // 2) Call your /api/chat endpoint
+    const stakeMatch = input.match(STAKE_REGEX)
+    const swapMatch = input.match(SWAP_REGEX)
+
+    if (stakeMatch) {
+      const amount = stakeMatch[1]
+      const coin = stakeMatch[3]
+      const reply = `Processing your request to stake ${amount} ${coin}. Transaction initiated...`
+      setTimeout(() => {
+        setMessages((prev) => [...prev, {
+          id: Date.now().toString(),
+          content: reply,
+          sender: "bot",
+          timestamp: new Date(),
+        }])
+        setIsTyping(false)
+      }, 600)
+      return
+    }
+
+    if (swapMatch) {
+      const reply = "I'm preparing a swap transaction for you. Let me find the best rates..."
+      setTimeout(() => {
+        setMessages((prev) => [...prev, {
+          id: Date.now().toString(),
+          content: reply,
+          sender: "bot",
+          timestamp: new Date(),
+        }])
+        setIsTyping(false)
+      }, 600)
+      return
+    }
+
     try {
       const res = await axios.post("/api/chat", {
         prompt: input,
@@ -88,7 +129,6 @@ export function ChatInterface() {
       })
       const { reply } = res.data
 
-      // 3) Insert a placeholder bot message we’ll stream into
       setMessages((prev) => [
         ...prev,
         {
@@ -99,7 +139,6 @@ export function ChatInterface() {
         },
       ])
 
-      // 4) Stream it out one char at a time
       let idx = 0
       const interval = setInterval(() => {
         idx++
@@ -131,8 +170,60 @@ export function ChatInterface() {
   }
 
   const handleSuggestionClick = (text: string) => {
-    setInput(text)
-    inputRef.current?.focus()
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: text,
+      sender: "user",
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setIsTyping(true)
+
+    const stakeMatch = text.match(STAKE_REGEX)
+    const swapMatch = text.match(SWAP_REGEX)
+
+    if (stakeMatch) {
+      const amount = stakeMatch[1]
+      const coin = stakeMatch[3]
+      const response = `Processing your request to stake ${amount} ${coin}. Transaction initiated...`
+      setTimeout(() => {
+        setMessages((prev) => [...prev, {
+          id: Date.now().toString(),
+          content: response,
+          sender: "bot",
+          timestamp: new Date(),
+        }])
+        setIsTyping(false)
+      }, 600)
+      return
+    }
+
+    if (swapMatch) {
+      const response = "I'm preparing a swap transaction for you. Let me find the best rates..."
+      setTimeout(() => {
+        setMessages((prev) => [...prev, {
+          id: Date.now().toString(),
+          content: response,
+          sender: "bot",
+          timestamp: new Date(),
+        }])
+        setIsTyping(false)
+      }, 600)
+      return
+    }
+
+    const response = predefinedResponses[text] || "Let me look into that for you..."
+    setTimeout(() => {
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        content: response,
+        sender: "bot",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, botMessage])
+      setIsTyping(false)
+    }, 600)
   }
 
   const messageVariants = {
@@ -143,10 +234,34 @@ export function ChatInterface() {
 
   return (
     <Card className="flex flex-col h-full bg-gradient-to-b from-gray-800/80 to-gray-900/90 border-gray-700 rounded-xl overflow-hidden shadow-xl relative">
-      {/* Background animations omitted for brevity… */}
-
       {/* Header */}
-      {/* …same as before… */}
+      <motion.div
+        className="p-4 border-b border-gray-700/50 bg-gray-800/70 backdrop-blur-sm relative z-10"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <motion.div
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-900/20"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <MessageSquare className="h-5 w-5 text-white" />
+            </motion.div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">SimplYield Assistant</h2>
+            </div>
+          </div>
+          <motion.div className="flex items-center space-x-1" whileHover={{ scale: 1.05 }}>
+            <div className="px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-xs font-medium text-purple-300 flex items-center">
+              <Sparkles className="h-3 w-3 mr-1.5" />
+              <span>AI Powered</span>
+            </div>
+          </motion.div>
+        </div>
+      </motion.div>
 
       {/* Messages */}
       <ScrollArea className="flex-grow p-4 relative z-10 h-[400px] md:h-[500px]">
@@ -162,15 +277,17 @@ export function ChatInterface() {
                 exit="exit"
               >
                 <div
-                  className={`flex items-start gap-3 max-w-[85%] ${msg.sender === "user" ? "flex-row-reverse" : ""
-                    }`}
+                  className={`flex items-start gap-3 max-w-[85%] ${
+                    msg.sender === "user" ? "flex-row-reverse" : ""
+                  }`}
                 >
                   {/* Avatar circle… */}
                   <motion.div
-                    className={`rounded-2xl p-4 ${msg.sender === "user"
+                    className={`rounded-2xl p-4 ${
+                      msg.sender === "user"
                         ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-tr-none shadow-lg shadow-purple-900/10"
                         : "bg-gradient-to-br from-gray-700/90 to-gray-800/90 text-white border border-gray-700/50 rounded-tl-none shadow-lg shadow-gray-900/10"
-                      }`}
+                    }`}
                     whileHover={{ scale: 1.02 }}
                   >
                     {/* ← Here’s the Markdown rendering */}
@@ -178,8 +295,9 @@ export function ChatInterface() {
                       {msg.content}
                     </ReactMarkdown>
                     <div
-                      className={`text-xs mt-2 flex justify-end ${msg.sender === "user" ? "text-purple-200/70" : "text-gray-400/70"
-                        }`}
+                      className={`text-xs mt-2 flex justify-end ${
+                        msg.sender === "user" ? "text-purple-200/70" : "text-gray-400/70"
+                      }`}
                     >
                       {msg.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
