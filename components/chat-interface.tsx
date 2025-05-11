@@ -17,6 +17,8 @@ import {
   MessageSquare,
   Wallet,
 } from "lucide-react"
+import { handleStakingCommand, handleUnstakingCommand } from '@/stake/native-stake-SOL'
+import { useWallet } from '@solana/wallet-adapter-react'
 
 const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
 const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
@@ -35,6 +37,7 @@ type SuggestionBubble = {
 }
 
 export function ChatInterface() {
+  const { publicKey, signTransaction, sendTransaction } = useWallet()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -89,36 +92,48 @@ export function ChatInterface() {
     const stakeMatch = input.match(STAKE_REGEX)
     const swapMatch = input.match(SWAP_REGEX)
 
-    if (stakeMatch) {
-      const amount = stakeMatch[1]
-      const coin = stakeMatch[3]
-      const reply = `Processing your request to stake ${amount} ${coin}. Transaction initiated...`
-      setTimeout(() => {
-        setMessages((prev) => [...prev, {
-          id: Date.now().toString(),
-          content: reply,
-          sender: "bot",
-          timestamp: new Date(),
-        }])
+    if (input.toLowerCase().startsWith("stake")) {
+      const reply = await handleStakingCommand(input, {
+        publicKey,
+        signTransaction,
+        sendTransaction,
+      })
+      if (reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: reply,
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
         setIsTyping(false)
-      }, 600)
-      return
+        return
+      }
     }
-
-    if (swapMatch) {
-      const reply = "I'm preparing a swap transaction for you. Let me find the best rates..."
-      setTimeout(() => {
-        setMessages((prev) => [...prev, {
-          id: Date.now().toString(),
-          content: reply,
-          sender: "bot",
-          timestamp: new Date(),
-        }])
+    
+    if (input.toLowerCase().startsWith("unstake")) {
+      const reply = await handleUnstakingCommand(input, {
+        publicKey,
+        signTransaction,
+        sendTransaction,
+      })
+      if (reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: reply,
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
         setIsTyping(false)
-      }, 600)
-      return
+        return
+      }
     }
-
+    
     try {
       const res = await axios.post("/api/chat", {
         prompt: input,
