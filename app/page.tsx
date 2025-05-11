@@ -44,7 +44,7 @@ export default function Home() {
         <main className="flex min-h-screen flex-col bg-gray-900">
           <motion.header className="border-b border-gray-800 p-4">
             <div className="container mx-auto flex justify-between items-center">
-              <h1 className="text-xl lg:text-6xl font-bold bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 text-transparent bg-clip-text">
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 text-transparent bg-clip-text">
                 <span className="font-extrabold">Simpl</span>Yield
               </h1>
               <div className="flex items-center gap-4">
@@ -64,17 +64,41 @@ export default function Home() {
             </div>
           </motion.header>
 
-          <motion.div className="container mx-auto p-4 flex flex-col md:flex-row gap-4 flex-grow">
+          <motion.div className="container mx-auto p-4 flex flex-col lg:flex-row gap-4 flex-grow">
             <motion.div className="flex-grow flex flex-col">
               <ChatInterface />
+
+              {/* On smaller screens, place View Portfolio and Transactions below chat */}
+              <div className="block lg:hidden space-y-4 mt-6">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
+                  <button
+                    onClick={() => router.push("/portfolio")}
+                    className="relative w-full py-3 px-5 text-base font-semibold flex items-center justify-center gap-3 rounded-xl z-10 overflow-hidden border border-purple-500/40 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-purple-800 hover:to-indigo-800 transition-all duration-300 shadow-md hover:shadow-purple-500/20"
+                  >
+                    <div className="relative flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-inner shadow-white/10">
+                      <BarChart2 className="h-4 w-4 text-white animate-pulse" />
+                      <div className="absolute h-1.5 w-1.5 rounded-full bg-blue-400 animate-orbit opacity-70" />
+                    </div>
+                    <span className="text-white tracking-wide">View Portfolio</span>
+                    <div className="absolute top-0 right-0 h-10 w-10 bg-gradient-to-br from-purple-600/20 to-indigo-600/10 rounded-bl-full blur-sm" />
+                    <div className="absolute bottom-0 left-0 h-6 w-6 bg-gradient-to-tr from-indigo-600/10 to-purple-600/5 rounded-tr-full blur-sm" />
+                  </button>
+                </div>
+
+                <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
+                  <div className="p-4 border-b border-gray-700 flex items-center">
+                    <h3 className="font-medium text-white">Recent Transactions</h3>
+                  </div>
+                  <TransactionHistory transactions={transactions} />
+                </div>
+              </div>
             </motion.div>
 
-            <motion.div className="w-full md:w-96 lg:w-[28rem] space-y-4">
-              <motion.div className="relative group">
-                {/* Background glow effect */}
+            {/* On large screens only */}
+            <motion.div className="hidden lg:block w-full lg:w-[28rem] space-y-4">
+              <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
-
-                {/* Button with animated gradient */}
                 <button
                   onClick={() => router.push("/portfolio")}
                   className="relative w-full py-3 px-5 text-base font-semibold flex items-center justify-center gap-3 rounded-xl z-10 overflow-hidden border border-purple-500/40 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-purple-800 hover:to-indigo-800 transition-all duration-300 shadow-md hover:shadow-purple-500/20"
@@ -84,19 +108,17 @@ export default function Home() {
                     <div className="absolute h-1.5 w-1.5 rounded-full bg-blue-400 animate-orbit opacity-70" />
                   </div>
                   <span className="text-white tracking-wide">View Portfolio</span>
-
-                  {/* Decorative glow elements */}
                   <div className="absolute top-0 right-0 h-10 w-10 bg-gradient-to-br from-purple-600/20 to-indigo-600/10 rounded-bl-full blur-sm" />
                   <div className="absolute bottom-0 left-0 h-6 w-6 bg-gradient-to-tr from-indigo-600/10 to-purple-600/5 rounded-tr-full blur-sm" />
                 </button>
-              </motion.div>
+              </div>
 
-              <motion.div className="bg-gray-800/50 border border-gray-700 rounded-lg mt-6">
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
                 <div className="p-4 border-b border-gray-700 flex items-center">
                   <h3 className="font-medium text-white">Recent Transactions</h3>
                 </div>
                 <TransactionHistory transactions={transactions} />
-              </motion.div>
+              </div>
             </motion.div>
           </motion.div>
 
