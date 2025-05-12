@@ -50,11 +50,12 @@ export const handleStakingCommand = async (input: string, wallet: any) => {
       authorized,
       lockup,
     }),
+    /*
     StakeProgram.delegate({
       stakePubkey: stakeAccount.publicKey,
       authorizedPubkey: wallet.publicKey,
       votePubkey: VALIDATOR_VOTE_ACCOUNT,
-    }),
+    }),*/
   ];
 
   const tx = new Transaction().add(...instructions);
