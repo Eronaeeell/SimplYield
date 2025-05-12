@@ -17,7 +17,7 @@ import {
   MessageSquare,
   Wallet,
 } from "lucide-react"
-import { handleStakingCommand, handleUnstakingCommand } from '@/stake/native-stake-SOL'
+import { handleStakingCommand, handleUnstakingCommand } from '@/stake-unstake/SOL/native-stake-SOL'
 import { useWallet } from '@solana/wallet-adapter-react'
 
 const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
