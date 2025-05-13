@@ -1,352 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SimplYield</title>
-    <link rel="stylesheet" href="popup.css" />
-  </head>
-  <body>
-    <div class="container">
-      <header>
-        <h1>SimplYield</h1>
-        <div class="wallet-status">
-          <span class="status-indicator"></span>
-          <span class="wallet-id">8xzt...cs7S</span>
-        </div>
-      </header>
-
-      <div id="transaction-alert" class="hidden">
-        <div class="alert-container">
-          <div class="alert-icon">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-                stroke="#8A8FFF"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M12 16V12"
-                stroke="#8A8FFF"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M12 8H12.01"
-                stroke="#8A8FFF"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-          </div>
-          <div class="alert-content">
-            <h2>New Transaction Detected!</h2>
-            <p id="transaction-details">
-              You received <span id="amount">0</span>
-              <span id="token">SOL</span>.
-            </p>
-          </div>
-        </div>
-
-        <div class="staking-options">
-          <h3>Would you like to stake?</h3>
-          <div class="percentage-options">
-            <button class="percentage-btn" data-percentage="25">25%</button>
-            <button class="percentage-btn" data-percentage="50">50%</button>
-            <button class="percentage-btn" data-percentage="75">75%</button>
-            <button class="percentage-btn" data-percentage="100">100%</button>
-          </div>
-          <div class="custom-percentage">
-            <input
-              type="range"
-              id="custom-percentage"
-              min="0"
-              max="100"
-              value="50" />
-            <div class="range-value">
-              <span id="percentage-value">50</span>%
-            </div>
-          </div>
-          <div class="action-buttons">
-            <button id="stake-now" class="primary-btn">Stake Now</button>
-            <button id="skip" class="secondary-btn">Skip</button>
-          </div>
-        </div>                                  
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimplYield</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SimplYield</h1>
+      <div class="wallet-status">
+        <span class="status-indicator"></span>
+        <span id="wallet-id" class="wallet-id">Not Connected</span>
       </div>
-
-      <div id="main-view">
-        <div class="assistant-chat">
-          <div class="message">
-            <div class="message-icon">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z"
-                  stroke="white"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round" />
-              </svg>
-            </div>
-            <div class="message-content">
-              <p>
-                Hello! I'm your SimplYield assistant. How can I help you today?
-              </p>
-              <span class="timestamp">10:23 AM</span>
-            </div>
-          </div>
-          <div class="message">
-            <div class="message-icon">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z"
-                  stroke="white"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round" />
-              </svg>
-            </div>
-            <div class="message-content">
-              <p>Try commands like 'Stake 4 SOL' or 'Show my portfolio'</p>
-              <span class="timestamp">10:23 AM</span>
-            </div>
+    </header>
+    <div class="connect-wallet">
+      <button id="connect-wallet-btn" class="primary-btn">Connect Wallet</button>
+    </div>
+    
+    <div id="transaction-alert" class="hidden">
+      <div class="alert-container">
+        <div class="alert-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#8A8FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 16V12" stroke="#8A8FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 8H12.01" stroke="#8A8FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="alert-content">
+          <h2>New Transaction Detected!</h2>
+          <p id="transaction-details">You received <span id="amount">0</span> <span id="token">SOL</span>.</p>
+        </div>
+      </div>
+      
+      <div class="staking-options">
+        <h3>Would you like to stake?</h3>
+        <div class="percentage-options">
+          <button class="percentage-btn" data-percentage="25">25%</button>
+          <button class="percentage-btn" data-percentage="50">50%</button>
+          <button class="percentage-btn" data-percentage="75">75%</button>
+          <button class="percentage-btn" data-percentage="100">100%</button>
+        </div>
+        <div class="custom-percentage">
+          <input type="range" id="custom-percentage" min="0" max="100" value="50">
+          <div class="range-value">
+            <span id="percentage-value">50</span>%
           </div>
         </div>
-
-        <div class="transactions-section">
-          <h2>Recent Transactions</h2>
-          <div class="transaction-list">
-            <div class="transaction-item">
-              <div class="transaction-icon up">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M12 19V5"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                  <path
-                    d="M5 12L12 5L19 12"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </div>
-              <div class="transaction-details">
-                <span class="transaction-title">Staked 5 SOL</span>
-                <span class="transaction-date">Apr 15, 06:30 PM</span>
-              </div>
-              <div class="transaction-status">
-                <span class="status completed">completed</span>
-                <span class="transaction-id">ID: tx1...</span>
-              </div>
-            </div>
-
-            <div class="transaction-item">
-              <div class="transaction-icon down">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M12 5V19"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                  <path
-                    d="M19 12L12 19L5 12"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </div>
-              <div class="transaction-details">
-                <span class="transaction-title">Unstaked 2.5 SOL</span>
-                <span class="transaction-date">Apr 14, 10:22 PM</span>
-              </div>
-              <div class="transaction-status">
-                <span class="status completed">completed</span>
-                <span class="transaction-id">ID: tx2...</span>
-              </div>
-            </div>
-
-            <div class="transaction-item">
-              <div class="transaction-icon swap">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M17 1L21 5L17 9"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                  <path
-                    d="M3 11V9C3 7.93913 3.42143 6.92172 4.17157 6.17157C4.92172 5.42143 5.93913 5 7 5H21"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                  <path
-                    d="M7 23L3 19L7 15"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                  <path
-                    d="M21 13V15C21 16.0609 20.5786 17.0783 19.8284 17.8284C19.0783 18.5786 18.0609 19 17 19H3"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </div>
-              <div class="transaction-details">
-                <span class="transaction-title"
-                  >Swapped 10 USDC to 0.1 SOL</span
-                >
-                <span class="transaction-date">Apr 13, 05:15 PM</span>
-              </div>
-              <div class="transaction-status">
-                <span class="status completed">completed</span>
-                <span class="transaction-id">ID: tx3...</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="suggested-commands">
-          <button class="command-btn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M12 16L16 12L12 8"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M8 12H16"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            Stake 5 SOL
-          </button>
-          <button class="command-btn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            Show my portfolio
-          </button>
-          <button class="command-btn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M17 1L21 5L17 9"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M3 11V9C3 7.93913 3.42143 6.92172 4.17157 6.17157C4.92172 5.42143 5.93913 5 7 5H21"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M7 23L3 19L7 15"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M21 13V15C21 16.0609 20.5786 17.0783 19.8284 17.8284C19.0783 18.5786 18.0609 19 17 19H3"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            Swap 10 USDC to SOL
-          </button>
-          <button class="command-btn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M21 4H3C1.89543 4 1 4.89543 1 6V18C1 19.1046 1.89543 20 3 20H21C22.1046 20 23 19.1046 23 18V6C23 4.89543 22.1046 4 21 4Z"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M1 10H23"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            What's my balance?
-          </button>
+        <div class="action-buttons">
+          <button id="stake-now" class="primary-btn">Stake Now</button>
+          <button id="skip" class="secondary-btn">Skip</button>
         </div>
       </div>
     </div>
-    <script src="popup.js"></script>
-  </body>
+    
+    <div id="main-view">
+      <div class="assistant-chat">
+        <div class="message">
+          <div class="message-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="message-content">
+            <p>Hello! I'm your SimplYield assistant. How can I help you today?</p>
+            <span class="timestamp">10:23 AM</span>
+          </div>
+        </div>
+        <div class="message">
+          <div class="message-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="message-content">
+            <p>Try commands like 'Stake 4 SOL' or 'Show my portfolio'</p>
+            <span class="timestamp">10:23 AM</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="transactions-section">
+        <h2>Recent Transactions</h2>
+        <div class="transaction-list">
+          <div class="transaction-item">
+            <div class="transaction-icon up">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 19V5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 12L12 5L19 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="transaction-details">
+              <span class="transaction-title">Staked 5 SOL</span>
+              <span class="transaction-date">Apr 15, 06:30 PM</span>
+            </div>
+            <div class="transaction-status">
+              <span class="status completed">completed</span>
+              <span class="transaction-id">ID: tx1...</span>
+            </div>
+          </div>
+          
+          <div class="transaction-item">
+            <div class="transaction-icon down">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M19 12L12 19L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="transaction-details">
+              <span class="transaction-title">Unstaked 2.5 SOL</span>
+              <span class="transaction-date">Apr 14, 10:22 PM</span>
+            </div>
+            <div class="transaction-status">
+              <span class="status completed">completed</span>
+              <span class="transaction-id">ID: tx2...</span>
+            </div>
+          </div>
+          
+          <div class="transaction-item">
+            <div class="transaction-icon swap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 1L21 5L17 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 11V9C3 7.93913 3.42143 6.92172 4.17157 6.17157C4.92172 5.42143 5.93913 5 7 5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 23L3 19L7 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 13V15C21 16.0609 20.5786 17.0783 19.8284 17.8284C19.0783 18.5786 18.0609 19 17 19H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="transaction-details">
+              <span class="transaction-title">Swapped 10 USDC to 0.1 SOL</span>
+              <span class="transaction-date">Apr 13, 05:15 PM</span>
+            </div>
+            <div class="transaction-status">
+              <span class="status completed">completed</span>
+              <span class="transaction-id">ID: tx3...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="suggested-commands">
+        <button class="command-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 16L16 12L12 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Stake 5 SOL
+        </button>
+        <button class="command-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Show my portfolio
+        </button>
+        <button class="command-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17 1L21 5L17 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 11V9C3 7.93913 3.42143 6.92172 4.17157 6.17157C4.92172 5.42143 5.93913 5 7 5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 23L3 19L7 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M21 13V15C21 16.0609 20.5786 17.0783 19.8284 17.8284C19.0783 18.5786 18.0609 19 17 19H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Swap 10 USDC to SOL
+        </button>
+        <button class="command-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 4H3C1.89543 4 1 4.89543 1 6V18C1 19.1046 1.89543 20 3 20H21C22.1046 20 23 19.1046 23 18V6C23 4.89543 22.1046 4 21 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M1 10H23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          What's my balance?
+        </button>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
 </html>
