@@ -113,6 +113,19 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
+                <button
+                  onClick={() => router.push("/stake")}
+                  className="relative w-full py-3 px-5 text-base font-semibold flex items-center justify-center gap-3 rounded-xl z-10 overflow-hidden border border-pink-500/40 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-pink-800 hover:to-purple-800 transition-all duration-300 shadow-md hover:shadow-pink-500/20"
+                >
+                  <div className="relative flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 shadow-inner shadow-white/10">
+                    <Shield className="h-4 w-4 text-white animate-pulse" />
+                  </div>
+                  <span className="text-white tracking-wide">Manage Unstake</span>
+                </button>
+              </div> */}
+
               <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
                 <div className="p-4 border-b border-gray-700 flex items-center">
                   <h3 className="font-medium text-white">Recent Transactions</h3>
