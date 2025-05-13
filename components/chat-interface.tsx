@@ -19,7 +19,9 @@ import {
 } from "lucide-react"
 import { handleStakingCommand, handleUnstakingCommand } from '@/stake-unstake/SOL/native-stake-SOL'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
+// import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
+import { handleStakeToMSOLCommand } from '@/stake-unstake/mSOL/liquid-stake-mSOL'
+import { useConnection } from '@solana/wallet-adapter-react'
 
 const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
 const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
@@ -45,6 +47,7 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [isInputFocused, setIsInputFocused] = useState(false)
+  const { connection } = useConnection()
 
   const suggestions: SuggestionBubble[] = [
     { id: "s1", text: "Stake 5 SOL", icon: <Sparkles className="h-3 w-3" /> },
@@ -93,25 +96,47 @@ export function ChatInterface() {
     const stakeMatch = input.match(STAKE_REGEX)
     const swapMatch = input.match(SWAP_REGEX)
 
-    if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol")) {
-  const reply = await handleStakeToBSOLCommand(input, {
-    publicKey,
-    signTransaction
-  })
-  if (reply) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        content: reply,
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ])
-    setIsTyping(false)
-    return
-  }
-}
+//     if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol")) {
+//   const reply = await handleStakeToBSOLCommand(input, {
+//     publicKey,
+//     signTransaction
+//   })
+//   if (reply) {
+//     setMessages((prev) => [
+//       ...prev,
+//       {
+//         id: Date.now().toString(),
+//         content: reply,
+//         sender: "bot",
+//         timestamp: new Date(),
+//       },
+//     ])
+//     setIsTyping(false)
+//     return
+//   }
+// }
+
+    if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to msol")) {
+      const reply = await handleStakeToMSOLCommand(input, {
+        publicKey,
+        signTransaction,
+        sendTransaction,
+        connection
+      })
+      if (reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: reply,
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
+        setIsTyping(false)
+        return
+      }
+    }
 
     if (input.toLowerCase().startsWith("stake")) {
       const reply = await handleStakingCommand(input, {

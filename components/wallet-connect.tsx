@@ -21,9 +21,6 @@ import {
     BraveWalletAdapter
 } from '@solana/wallet-adapter-brave';
 import {
-    UnsafeBurnerWalletAdapter
-} from '@solana/wallet-adapter-unsafe-burner';
-import {
     WalletModalProvider
 } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
@@ -46,7 +43,6 @@ export const Walletsc: FC<Props> = ({ children }) => {
             new TorusWalletAdapter(),
             new LedgerWalletAdapter(),
             new BraveWalletAdapter(),
-            new UnsafeBurnerWalletAdapter(), // useful for development
         ],
         [network]
     );
