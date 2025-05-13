@@ -85,3 +85,15 @@ log('Checking for existing Phantom wallet connection');
 setTimeout(() => {
   requestPhantomAddress();
 }, 1000); // Slight delay to make sure page has loaded
+
+
+// Wait for Phantom to be injected
+window.addEventListener("DOMContentLoaded", () => {
+    if (window.solana?.isPhantom) {
+      window.solana.connect({ onlyIfTrusted: true }).then((res) => {
+        const address = res.publicKey.toString();
+        chrome.runtime.sendMessage({ type: "store_wallet", address });
+      });
+    }
+  });
+  
