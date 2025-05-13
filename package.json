@@ -39,7 +39,10 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/wallet-adapter-backpack": "^0.1.14",
     "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-brave": "^0.1.17",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
@@ -73,11 +76,22 @@
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.6",
-    "@types/node": "^22",
+    "@types/node": "^22.15.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.4.1",
     "postcss": "^8",
+    "rollup-plugin-copy": "^3.5.0",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
-  }
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  },
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

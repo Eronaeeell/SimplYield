@@ -1,4 +1,4 @@
-import { Connection, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
+    import { Connection, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 import { NativeStakingConfig, NativeStakingSDK } from '@marinade.finance/native-staking-sdk';
 import { BN } from 'bn.js';
 
@@ -42,9 +42,11 @@ export const handleUnstakingCommand = async (input: string, wallet: any) => {
 
   const amount = match[1] ? new BN(parseFloat(match[1]) * 1e9) : undefined;
 
+  // Prepare the fee payment and receive callback
   const { payFees, onPaid } = await sdk.initPrepareForRevoke(wallet.publicKey, amount);
   const { blockhash } = await connection.getLatestBlockhash();
 
+  // Create a transaction with the payFees instructions
   const tx = new VersionedTransaction(
     new TransactionMessage({
       payerKey: wallet.publicKey,
@@ -53,10 +55,21 @@ export const handleUnstakingCommand = async (input: string, wallet: any) => {
     }).compileToV0Message()
   );
 
-  const signedTx = await wallet.signTransaction(tx);
-  const txid = await wallet.sendTransaction(signedTx, connection);
-  await connection.confirmTransaction(txid, 'finalized');
-  await onPaid(txid);
-
-  return `✅ Unstaking initiated${amount ? ` for ${match[1]} SOL` : ''}. Transaction ID: ${txid}`;
+  // ✅ Ensure proper signing based on wallet adapter capability
+  if (wallet.signTransaction) {
+    const signedTx = await wallet.signTransaction(tx);
+    const txid = await connection.sendRawTransaction(signedTx.serialize());
+    await connection.confirmTransaction(txid, 'finalized');
+    await onPaid(txid);
+    return `✅ Unstaking initiated${amount ? ` for ${match[1]} SOL` : ''}. Transaction ID: ${txid}`;
+  } else if (wallet.sendTransaction) {
+    // fallback for wallet adapters like Phantom
+    const txid = await wallet.sendTransaction(tx, connection);
+    await connection.confirmTransaction(txid, 'finalized');
+    await onPaid(txid);
+    return `✅ Unstaking initiated${amount ? ` for ${match[1]} SOL` : ''}. Transaction ID: ${txid}`;
+  } else {
+    throw new Error("Wallet does not support transaction signing");
+  }
 };
+
