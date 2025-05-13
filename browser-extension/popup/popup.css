@@ -1,3 +1,4 @@
+
 /* Base Styles */
 :root {
     --primary-color: #8A8FFF;
@@ -332,17 +333,6 @@
     margin-top: 16px;
   }
   
-/* Connect Wallet Button */
-.connect-wallet {
-  margin-bottom: 16px;
-}
-
-#connect-wallet-btn {
-  width: 100%;
-  text-align: center;
-}
-
-
   .command-btn {
     background-color: rgba(255, 255, 255, 0.05);
     border: none;
@@ -363,18 +353,3 @@
   .command-btn svg {
     margin-right: 6px;
   }
-
-  .wallet-adapter-button {
-    font-weight: 600;
-    font-size: 16px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    box-shadow: 0 0 16px rgba(138, 143, 255, 0.5);
-    background-color: #8a8fff;
-    color: white;
-  }
-  
-  .wallet-adapter-button:hover {
-    background-color: #6c67dc;
-  }
-  
