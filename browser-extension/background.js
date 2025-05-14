@@ -414,6 +414,76 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === 'walletConnected' && request.walletAddress) {
+    console.log('Wallet connected:', request.walletAddress);
+    
+    // Store the wallet address in Chrome storage
+    chrome.storage.local.set({
+      walletConnected: true,
+      walletAddress: request.walletAddress,
+      connectionTimestamp: Date.now()
+    }, function() {
+      console.log('Wallet info saved to storage');
+      
+      // Notify all extension views about the wallet connection
+      chrome.runtime.sendMessage({
+        action: 'updateWalletStatus',
+        walletAddress: request.walletAddress
+      });
+    });
+    
+    return true; // Keep the message channel open for async response
+  }
+});
 
+// Check for wallet connection when extension is installed or updated
+chrome.runtime.onInstalled.addListener(function() {
+  // Initialize wallet connection state
+  chrome.storage.local.set({
+    walletConnected: false,
+    walletAddress: null
+  });
+  
+  // Create alarm to periodically check wallet connection
+  chrome.alarms.create('checkWalletConnection', {
+    periodInMinutes: 5
+  });
+});
+
+// Listen for the alarm
+chrome.alarms.onAlarm.addListener(function(alarm) {
+  if (alarm.name === 'checkWalletConnection') {
+    // Query for SimplYield tabs
+    chrome.tabs.query({url: '*://simpl-yield.vercel.app/*'}, function(tabs) {
+      if (tabs.length > 0) {
+        // If SimplYield site is open, inject a script to check wallet status
+        tabs.forEach(tab => {
+          chrome.scripting.executeScript({
+            target: {tabId: tab.id},
+            function: checkWalletOnPage
+          });
+        });
+      }
+    });
+  }
+});
+
+// This function will be injected into the SimplYield page
+function checkWalletOnPage() {
+  // This is simplified - you would need to adapt this based on 
+  // how the wallet address is represented on the actual website
+  const walletElements = document.querySelectorAll('.wallet-address, .connected-wallet');
+  
+  walletElements.forEach(element => {
+    const walletAddress = element.textContent.trim();
+    if (walletAddress && walletAddress.length > 30) {
+      chrome.runtime.sendMessage({
+        action: 'walletConnected',
+        walletAddress: walletAddress
+      });
+    }
+  });
+}
 // Initialize when browser starts
 initialize();
