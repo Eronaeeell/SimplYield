@@ -1,100 +1,127 @@
 // import {
 //   Connection,
 //   PublicKey,
-//   Transaction,
 //   SystemProgram,
-//   LAMPORTS_PER_SOL,
+//   Transaction,
 //   sendAndConfirmRawTransaction,
-// } from '@solana/web3.js'
+//   LAMPORTS_PER_SOL,
+// } from "@solana/web3.js"
 // import {
+//   depositSol,
 //   stakePoolInfo,
-//   depositSol
-// } from '@solana/spl-stake-pool'
+// } from "@solana/spl-stake-pool"
 // import {
-//   getAssociatedTokenAddress
-// } from '@solana/spl-token'
+//   getAssociatedTokenAddressSync,
+//   createAssociatedTokenAccountInstruction,
+//   TOKEN_PROGRAM_ID,
+//   ASSOCIATED_TOKEN_PROGRAM_ID,
+// } from "@solana/spl-token"
+// import fetch from "node-fetch"
 
-// const DEVNET_RPC = 'https://api.devnet.solana.com'
-// const BLAZESTAKE_POOL = new PublicKey("azFVdHtAJN8BX3sbGAYkXvtdjdrT5U6rj9rovvUFos9")
-// const BSOL_MINT = new PublicKey("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1")
-// const SOLPAY_API_ACTIVATION = new PublicKey("7f18MLpvAp48ifA1B8q8FBdrGQhyt9u5Lku2VBYejzJL")
+// const BLAZESTAKE_POOL_DEVNET = new PublicKey(
+//   "azFVdHtAJN8BX3sbGAYkXvtdjdrT5U6rj9rovvUFos9"
+// )
+// const SOLPAY_API_ACTIVATION = new PublicKey(
+//   "7f18MLpvAp48ifA1B8q8FBdrGQhyt9u5Lku2VBYejzJL"
+// )
+// const BSOL_MINT = new PublicKey(
+//   "BLwZ9zk9z3yzfeuYAvKQSkGpWvCZDkH4dAdk9ZGx8yNM"
+// )
 
 // export async function handleStakeToBSOLCommand(
 //   input: string,
-//   { publicKey, signTransaction }: { publicKey: PublicKey | null; signTransaction: any }
-// ): Promise<string> {
-//   if (!publicKey) return "❌ Wallet not connected."
-
-//   const match = input.match(/^stake\s+(\d+(\.\d+)?)\s+sol\s+to\s+bsol$/i)
-//   if (!match) return "❌ Invalid format. Try: `stake 0.5 sol to bsol`"
-
-//   const amountSol = parseFloat(match[1])
-//   const lamports = amountSol * LAMPORTS_PER_SOL
-
-//   const connection = new Connection(DEVNET_RPC, 'confirmed')
-
+//   {
+//     publicKey,
+//     signTransaction,
+//     connection,
+//   }: {
+//     publicKey: PublicKey
+//     signTransaction: (tx: Transaction) => Promise<Transaction>
+//     connection: Connection
+//   }
+// ): Promise<string | null> {
 //   try {
-//     // Get bSOL token account for wallet
-//     const userBSolATA = await getAssociatedTokenAddress(
-//       BSOL_MINT,
-//       publicKey,
-//       false
-//     )
+//     const match = input.match(/stake\s+(\d+(?:\.\d+)?)\s+sol\s+to\s+bsol/i)
+//     if (!match) return null
 
-//     // Get stake pool info
-//     const info = await stakePoolInfo(connection, BLAZESTAKE_POOL)
+//     const amount = parseFloat(match[1])
+//     if (amount <= 0) return "❌ Amount must be greater than 0 SOL."
+//     const lamports = amount * LAMPORTS_PER_SOL
+
+//     const info = await stakePoolInfo(connection, BLAZESTAKE_POOL_DEVNET)
 //     if (info.details.updateRequired) {
-//       await fetch('https://stake.solblaze.org/api/v1/update_pool?network=devnet')
+//       const res = await fetch(
+//         "https://stake.solblaze.org/api/v1/update_pool?network=devnet"
+//       )
+//       const json = await res.json()
+//       if (!json.success) throw new Error("Stake pool update failed")
 //     }
 
-//     // Stats
-//     let solanaAmount = BigInt(info.details?.reserveStakeLamports ?? 0)
-//     for (let i = 0; i < (info.details?.stakeAccounts?.length ?? 0); i++) {
-//       const lamports = info.details!.stakeAccounts![i].validatorLamports ?? "0"
-//       solanaAmount += BigInt(lamports)
-//     } 
-
-//     const tokenAmount = BigInt(info.poolTokenSupply)
-//     const conversion = Number(solanaAmount) / Number(tokenAmount)
-
-//     const validatorRes = await fetch("https://stake.solblaze.org/api/v1/validator_count")
-//     const { count: validators } = await validatorRes.json()
-
-//     // Stake
 //     const depositTx = await depositSol(
 //       connection,
-//       BLAZESTAKE_POOL,
+//       BLAZESTAKE_POOL_DEVNET,
 //       publicKey,
 //       lamports,
-//       userBSolATA, // ✅ Explicitly pass bSOL token account
+//       undefined,
 //       publicKey
 //     )
 
-//     const tx = new Transaction()
-//     tx.add(SystemProgram.transfer({
-//       fromPubkey: publicKey,
-//       toPubkey: SOLPAY_API_ACTIVATION,
-//       lamports: 5000
-//     }))
-//     tx.add(...depositTx.instructions)
+//     const transaction = new Transaction()
 
-//     tx.feePayer = publicKey
-//     tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+//     // Tip to Blaze crank
+//     transaction.add(
+//       SystemProgram.transfer({
+//         fromPubkey: publicKey,
+//         toPubkey: SOLPAY_API_ACTIVATION,
+//         lamports: 5000,
+//       })
+//     )
 
-//     if (depositTx.signers.length > 0) {
-//       tx.partialSign(...depositTx.signers)
+//     // Create ATA for bSOL if needed
+//     const bsolATA = getAssociatedTokenAddressSync(
+//       BSOL_MINT,
+//       publicKey,
+//       false,
+//       TOKEN_PROGRAM_ID,
+//       ASSOCIATED_TOKEN_PROGRAM_ID
+//     )
+
+//     const accountInfo = await connection.getAccountInfo(bsolATA)
+
+//     if (!accountInfo) {
+//       transaction.add(
+//         createAssociatedTokenAccountInstruction(
+//           publicKey,
+//           bsolATA,
+//           publicKey,
+//           BSOL_MINT,
+//           TOKEN_PROGRAM_ID,
+//           ASSOCIATED_TOKEN_PROGRAM_ID
+//         )
+//       )
 //     }
 
-//     const signed = await signTransaction(tx)
-//     const txid = await sendAndConfirmRawTransaction(connection, signed.serialize())
+//     // Add staking instructions
+//     transaction.add(...depositTx.instructions)
 
-//     return `✅ Successfully staked ${amountSol} SOL to bSOL.\n\n` +
-//            `🔁 Conversion rate: 1 bSOL ≈ ${conversion.toFixed(4)} SOL\n` +
-//            `📊 Validators: ${validators}\n` +
-//            `🔗 [View on Solscan](https://solscan.io/tx/${txid}?cluster=devnet)`
-//   } catch (err: unknown) {
-//     console.error('Stake to bSOL error:', err)
-//     const message = err instanceof Error ? err.message : String(err)
-//     return `❌ Failed to stake to bSOL: ${message}`
+//     // Set recent blockhash & fee payer
+//     const latestBlockhash = await connection.getLatestBlockhash()
+//     transaction.recentBlockhash = latestBlockhash.blockhash
+//     transaction.feePayer = publicKey
+
+//     if (depositTx.signers.length > 0) {
+//       transaction.partialSign(...depositTx.signers)
+//     }
+
+//     const signedTx = await signTransaction(transaction)
+//     const txid = await connection.sendRawTransaction(signedTx.serialize(), {
+//       skipPreflight: false,
+//       preflightCommitment: "confirmed",
+//     })
+
+//     return `\u2705 Successfully staked ${amount} SOL to bSOL!\n\n\ud83d\udd17 [View on Solana Explorer](https://explorer.solana.com/tx/${txid}?cluster=devnet)`
+//   } catch (err: any) {
+//     console.error("Stake to bSOL error:", err?.message || err)
+//     return `\u274c Failed to stake SOL to bSOL.\n\n**Error:** ${err?.message || err}`
 //   }
 // }

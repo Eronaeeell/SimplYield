@@ -20,8 +20,10 @@ import {
 import { handleStakingCommand, handleUnstakingCommand } from '@/stake-unstake/SOL/native-stake-SOL'
 import { useWallet } from '@solana/wallet-adapter-react'
 // import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
-import { handleStakeToMSOLCommand } from '@/stake-unstake/mSOL/liquid-stake-mSOL'
+import { handleStakeToMSOLCommand, handleUnstakeMSOLCommand } from '@/stake-unstake/mSOL/liquid-stake-mSOL'
 import { useConnection } from '@solana/wallet-adapter-react'
+// import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
+
 
 const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
 const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
@@ -137,6 +139,68 @@ export function ChatInterface() {
         return
       }
     }
+    
+    if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol")) {
+  if (!publicKey || !signTransaction || !connection) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        content: "❌ Wallet not connected. Please connect your wallet to proceed.",
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ])
+    setIsTyping(false)
+    return
+  }
+
+//   const reply = await handleStakeToBSOLCommand(input, {
+//     publicKey,
+//     signTransaction,
+//     connection,
+//   })
+
+//   if (reply) {
+//     setMessages((prev) => [
+//       ...prev,
+//       {
+//         id: Date.now().toString(),
+//         content: reply,
+//         sender: "bot",
+//         timestamp: new Date(),
+//       },
+//     ])
+//     setIsTyping(false)
+//     return
+//   }
+}
+if (
+  input.toLowerCase().startsWith("unstake msol") ||
+  /^unstake\s+\d+(\.\d+)?\s+msol$/i.test(input)
+) {
+  const reply = await handleUnstakeMSOLCommand(input, {
+    publicKey,
+    signTransaction,
+    sendTransaction,
+    connection
+  })
+  if (reply) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        content: reply,
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ])
+    setIsTyping(false)
+    return
+  }
+}
+
+
 
     if (input.toLowerCase().startsWith("stake")) {
       const reply = await handleStakingCommand(input, {
