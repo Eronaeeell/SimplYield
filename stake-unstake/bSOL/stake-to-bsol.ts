@@ -6,15 +6,19 @@ import {
 } from "@solana/web3.js";
 import {
   getStakePoolAccount,
-  stakePoolInfo,
-  updateStakePool,
   depositSol,
+  withdrawSol,
 } from "@solana/spl-stake-pool";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
+import {
+  getAssociatedTokenAddress,
+  getAccount,
+} from "@solana/spl-token";
 
-/**
- * Handles the command "stake X sol to bsol"
- */
+const BLAZESTAKE_POOL = new PublicKey("azFVdHtAJN8BX3sbGAYkXvtdjdrT5U6rj9rovvUFos9");
+const BSOL_MINT = new PublicKey("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1");
+
+let lastDetectedBSOLAmount = 0;
+
 export async function handleStakeToBSOLCommand(
   input: string,
   {
@@ -28,63 +32,89 @@ export async function handleStakeToBSOLCommand(
   }
 ): Promise<string> {
   try {
-    const match = input.match(/^stake\s+(\d+(\.\d+)?)\s+sol\s+to\s+bsol$/i);
-    if (!match) return "❌ Invalid command format. Try `stake 1 sol to bsol`.";
+    // === STAKE FLOW ===
+    const stakeMatch = input.match(/^stake\s+(\d+(\.\d+)?)\s+sol\s+to\s+bsol$/i);
+    if (stakeMatch) {
+      const amount = parseFloat(stakeMatch[1]);
+      const lamports = Math.floor(amount * LAMPORTS_PER_SOL);
+      const userBSolATA = await getAssociatedTokenAddress(BSOL_MINT, publicKey);
 
-    const amount = parseFloat(match[1]);
-    const lamports = Math.floor(amount * LAMPORTS_PER_SOL);
+      const depositTx = await depositSol(
+        connection,
+        BLAZESTAKE_POOL,
+        publicKey,
+        lamports,
+        undefined,
+        userBSolATA
+      );
 
-    // BlazeStake pool address on Devnet
-    const BLAZESTAKE_POOL = new PublicKey("azFVdHtAJN8BX3sbGAYkXvtdjdrT5U6rj9rovvUFos9");
+      const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+      const transaction = new Transaction({
+        recentBlockhash: latestBlockhash.blockhash,
+        feePayer: publicKey,
+      });
+      transaction.add(...depositTx.instructions);
+      if (depositTx.signers.length > 0) transaction.partialSign(...depositTx.signers);
 
-    // 1. Load stake pool account data
-    const stakePoolAccount = await getStakePoolAccount(connection, BLAZESTAKE_POOL);
-    const BSOL_MINT = new PublicKey("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1");
-    const userBSolATA = await getAssociatedTokenAddress(BSOL_MINT, publicKey);
+      const signedTx = await signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      });
 
-    // // 2. Check for update requirement
-    // const info = await stakePoolInfo(connection, stakePoolAccount);
-    // if (info.details.updateRequired) {
-    //   await updateStakePool(connection, BLAZESTAKE_POOL, publicKey);
-    // }
-
-    // 3. Prepare the staking transaction
-    const depositTx = await depositSol(
-      connection,
-      BLAZESTAKE_POOL,
-      publicKey,
-      lamports,
-      undefined,
-      userBSolATA // instead of publicKey
-    );
-
-    // 4. Get a recent blockhash
-    const latestBlockhash = await connection.getLatestBlockhash("confirmed");
-
-    // 5. Build transaction with blockhash and fee payer
-    const transaction = new Transaction({
-      recentBlockhash: latestBlockhash.blockhash,
-      feePayer: publicKey,
-    });
-    transaction.add(...depositTx.instructions);
-
-    // 6. Partial sign with any required signers
-    if (depositTx.signers.length > 0) {
-      transaction.partialSign(...depositTx.signers);
+      return `✅ Successfully staked ${amount} SOL to bSOL!\n 🔗[View transaction](https://explorer.solana.com/tx/${txid}?cluster=devnet)`;
     }
 
-    // 7. Let the wallet sign the full transaction
-    const signedTx = await signTransaction(transaction);
+    // === UNSTAKE DETECTION ===
+    if (input.trim().toLowerCase() === "unstake bsol") {
+      const userBSolATA = await getAssociatedTokenAddress(BSOL_MINT, publicKey);
+      try {
+        const account = await getAccount(connection, userBSolATA);
+        const amount = Number(account.amount) / LAMPORTS_PER_SOL;
+        lastDetectedBSOLAmount = amount;
+        return `🪙 You currently hold **${amount.toFixed(4)} bSOL**.\nType:\n\`unstake {amount} bsol\` to proceed.`;
+      } catch (e) {
+        return `⚠️ No bSOL found in your wallet.`;
+      }
+    }
 
-    // 8. Send the transaction to the network
-    const txid = await connection.sendRawTransaction(signedTx.serialize(), {
-      skipPreflight: false,
-      preflightCommitment: "confirmed",
-    });
+    // === UNSTAKE EXECUTION ===
+    const unstakeMatch = input.match(/^unstake\s+(\d+(\.\d+)?)\s+bsol$/i);
+    if (unstakeMatch) {
+      const amount = parseFloat(unstakeMatch[1]);
+      if (amount > lastDetectedBSOLAmount) {
+        return `❌ You only have ${lastDetectedBSOLAmount.toFixed(4)} bSOL.`;
+      }
 
-    return `✅ Successfully staked ${amount} SOL to bSOL!\n 🔗[View transaction](https://explorer.solana.com/tx/${txid}?cluster=devnet)`;
+      const withdrawTx = await withdrawSol(
+        connection,
+        BLAZESTAKE_POOL,
+        publicKey,
+        publicKey,
+        amount
+      );
+
+      const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+      const transaction = new Transaction({
+        recentBlockhash: latestBlockhash.blockhash,
+        feePayer: publicKey,
+      });
+      transaction.add(...withdrawTx.instructions);
+      if (withdrawTx.signers.length > 0) transaction.partialSign(...withdrawTx.signers);
+
+      const signedTx = await signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      });
+
+      return `✅ Successfully unstaked ${amount} bSOL to SOL!\n 🔗[View transaction](https://explorer.solana.com/tx/${txid}?cluster=devnet)`;
+    }
+
+    return `🤖 I didn’t understand that bSOL command. Try:\n- stake 1 sol to bsol\n- unstake bsol\n- unstake 0.5 bsol`;
+
   } catch (err: any) {
-    console.error("bSOL staking error:", err);
-    return `❌ Failed to stake to bSOL: ${err.message || err}`;
+    console.error("bSOL stake/unstake error:", err);
+    return `❌ Failed: ${err.message || err}`;
   }
 }

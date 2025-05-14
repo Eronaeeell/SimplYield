@@ -155,7 +155,11 @@ export function ChatInterface() {
       }
     }
     
-    if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol")) {
+if (
+  input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol") ||
+  input.trim().toLowerCase() === "unstake bsol" ||
+  /^unstake\s+\d+(\.\d+)?\s+bsol$/i.test(input)
+) {
   if (!publicKey || !signTransaction || !connection) {
     setMessages((prev) => [
       ...prev,
@@ -165,12 +169,32 @@ export function ChatInterface() {
         sender: "bot",
         timestamp: new Date(),
       },
-    ])
-    setIsTyping(false)
-    return
+    ]);
+    setIsTyping(false);
+    return;
   }
-    }
-    
+
+  const reply = await handleStakeToBSOLCommand(input, {
+    publicKey,
+    signTransaction,
+    connection,
+  });
+
+  if (reply) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        content: reply,
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ]);
+    setIsTyping(false);
+    return;
+  }
+}
+
 if (
   input.toLowerCase().startsWith("unstake msol") ||
   /^unstake\s+\d+(\.\d+)?\s+msol$/i.test(input)
