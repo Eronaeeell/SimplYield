@@ -9,6 +9,19 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Avoid resolving 'fs' module on the client side
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+      };
+    }
 
-export default nextConfig
+    return config;
+  },
+};
+
+export default nextConfig;
