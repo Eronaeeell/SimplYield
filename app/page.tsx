@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -10,14 +10,22 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import { PageTransition } from "@/components/ui/page-transition"
 import { Shield, Sparkles, MessageSquare, Wallet, BarChart2 } from "lucide-react"
 import { TransactionHistory } from "@/components/transaction-history"
+import { MiniNotification } from "@/components/ui/mini-notification"
+import { useConnection } from "@solana/wallet-adapter-react"
 
 export default function Home() {
   const router = useRouter()
-  const { connected, publicKey, connect, disconnect } = useWallet()
+  const { connected, publicKey, connect, disconnect, sendTransaction, signTransaction } = useWallet()
+  const { connection } = useConnection()
+
   const [walletAddress, setWalletAddress] = useState<string>("")
   const [transactions, setTransactions] = useState<any[]>([])
   const [showNotification, setShowNotification] = useState(false)
   const [notification, setNotification] = useState({ type: "success", title: "", message: "" })
+
+  const [showMiniNotif, setShowMiniNotif] = useState(false)
+  const [receivedAmount, setReceivedAmount] = useState(0)
+  const prevTxSignatures = useRef<string[]>([])
 
   useEffect(() => {
     if (connected && publicKey) {
@@ -26,6 +34,47 @@ export default function Home() {
       setWalletAddress("")
     }
   }, [connected, publicKey])
+
+  useEffect(() => {
+    if (!connected || !publicKey) return
+
+    const processedSigs = new Set<string>()
+
+    const interval = setInterval(async () => {
+      try {
+        const sigs = await connection.getSignaturesForAddress(publicKey, { limit: 5 })
+
+        for (const sig of sigs) {
+          if (processedSigs.has(sig.signature)) continue // skip if already processed
+
+          const tx = await connection.getParsedTransaction(sig.signature, { commitment: "confirmed" })
+          const instructions = tx?.transaction.message.instructions || []
+
+          for (const ix of instructions) {
+            if ("parsed" in ix && ix.program === "system") {
+              const parsed = ix.parsed as any
+              if (parsed?.type === "transfer" && parsed.info?.destination === publicKey.toBase58()) {
+                const lamports = parsed.info.lamports
+                const sol = lamports / 1_000_000_000
+
+                // Trigger the popup
+                setReceivedAmount(sol)
+                setShowMiniNotif(true)
+              }
+            }
+          }
+
+          // Mark this signature as processed
+          processedSigs.add(sig.signature)
+        }
+      } catch (err) {
+        console.error("Error checking incoming transactions:", err)
+      }
+    }, 10_000)
+
+    return () => clearInterval(interval)
+  }, [connected, publicKey])
+
 
   const handleConnectWallet = () => {
     connect().catch(() => {
@@ -68,7 +117,6 @@ export default function Home() {
             <motion.div className="flex-grow flex flex-col">
               <ChatInterface />
 
-              {/* On smaller screens, place View Portfolio and Transactions below chat */}
               <div className="block lg:hidden space-y-4 mt-6">
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
@@ -81,8 +129,6 @@ export default function Home() {
                       <div className="absolute h-1.5 w-1.5 rounded-full bg-blue-400 animate-orbit opacity-70" />
                     </div>
                     <span className="text-white tracking-wide">View Portfolio</span>
-                    <div className="absolute top-0 right-0 h-10 w-10 bg-gradient-to-br from-purple-600/20 to-indigo-600/10 rounded-bl-full blur-sm" />
-                    <div className="absolute bottom-0 left-0 h-6 w-6 bg-gradient-to-tr from-indigo-600/10 to-purple-600/5 rounded-tr-full blur-sm" />
                   </button>
                 </div>
 
@@ -95,7 +141,6 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* On large screens only */}
             <motion.div className="hidden lg:block w-full lg:w-[28rem] space-y-4">
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
@@ -108,23 +153,8 @@ export default function Home() {
                     <div className="absolute h-1.5 w-1.5 rounded-full bg-blue-400 animate-orbit opacity-70" />
                   </div>
                   <span className="text-white tracking-wide">View Portfolio</span>
-                  <div className="absolute top-0 right-0 h-10 w-10 bg-gradient-to-br from-purple-600/20 to-indigo-600/10 rounded-bl-full blur-sm" />
-                  <div className="absolute bottom-0 left-0 h-6 w-6 bg-gradient-to-tr from-indigo-600/10 to-purple-600/5 rounded-tr-full blur-sm" />
                 </button>
               </div>
-
-              {/* <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
-                <button
-                  onClick={() => router.push("/stake")}
-                  className="relative w-full py-3 px-5 text-base font-semibold flex items-center justify-center gap-3 rounded-xl z-10 overflow-hidden border border-pink-500/40 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-pink-800 hover:to-purple-800 transition-all duration-300 shadow-md hover:shadow-pink-500/20"
-                >
-                  <div className="relative flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 shadow-inner shadow-white/10">
-                    <Shield className="h-4 w-4 text-white animate-pulse" />
-                  </div>
-                  <span className="text-white tracking-wide">Manage Unstake</span>
-                </button>
-              </div> */}
 
               <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
                 <div className="p-4 border-b border-gray-700 flex items-center">
@@ -143,6 +173,15 @@ export default function Home() {
             onClose={() => setShowNotification(false)}
             position="top-right"
           />
+
+          <MiniNotification
+            isVisible={showMiniNotif}
+            amount={receivedAmount}
+            onClose={() => setShowMiniNotif(false)}
+            wallet={{ publicKey, signTransaction, sendTransaction }}
+            connection={connection} // pass only what is needed
+          />
+
         </main>
       </PageTransition>
     )
