@@ -115,7 +115,7 @@ export default function Home() {
 
           <motion.div className="container mx-auto p-4 flex flex-col lg:flex-row gap-4 flex-grow">
             <motion.div className="flex-grow flex flex-col">
-              <ChatInterface />
+              <ChatInterface/>
 
               <div className="block lg:hidden space-y-4 mt-6">
                 <div className="relative group">

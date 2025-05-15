@@ -24,6 +24,7 @@ import { useConnection } from '@solana/wallet-adapter-react'
 import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
 import { handleSendSolCommand } from "@/stake-unstake/SendSOL/send-sol"
 import { Transaction } from "@solana/web3.js"
+import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 
 const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
 const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
@@ -53,26 +54,13 @@ export function ChatInterface() {
   const { connection } = useConnection()
 
   const suggestions: SuggestionBubble[] = [
-    { id: "s1", text: "Stake 5 SOL", icon: <Sparkles className="h-3 w-3" /> },
-    {
-      id: "s2",
-      text: "Show my portfolio",
-      icon: <BarChart2 className="h-3 w-3" />,
-    },
-    { id: "s3", text: "Swap 10 USDC to SOL", icon: <Zap className="h-3 w-3" /> },
+    { id: "s1", text: "Stake 1 SOL", icon: <Sparkles className="h-3 w-3" /> },
     {
       id: "s4",
       text: "What's my balance?",
       icon: <Coins className="h-3 w-3" />,
     },
   ]
-
-  const predefinedResponses: Record<string, string> = {
-    "Stake 5 SOL": "Processing your request to stake 5 SOL. Transaction initiated...",
-    "Show my portfolio": "I've analyzed your portfolio. You currently have assets across multiple pools with a total value of 245.32 SOL.",
-    "Swap 10 USDC to SOL": "I'm preparing a swap transaction for you. Let me find the best rates...",
-    "What's my balance?": "Your current balance is 245.32 SOL ($24,532.00).",
-  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -222,8 +210,6 @@ if (
   }
 }
 
-
-
     if (input.toLowerCase().startsWith("stake")) {
       const reply = await handleStakingCommand(input, {
         publicKey,
@@ -338,7 +324,17 @@ if (
     if (e.key === "Enter") handleSendMessage()
   }
 
-  const handleSuggestionClick = (text: string) => {
+  const getWalletBalanceText = async () => {
+  if (!publicKey) {
+    return "❌ Wallet not connected. Please connect your wallet to proceed."
+  }
+  const lamports = await connection.getBalance(publicKey)
+  const sol = lamports / LAMPORTS_PER_SOL
+  return `Your current balance is **${sol.toFixed(4)} SOL**`
+}
+
+const handleSuggestionClick = async (text: string) => {
+  if (text === "What's my balance?") {
     const userMessage: Message = {
       id: Date.now().toString(),
       content: text,
@@ -346,54 +342,32 @@ if (
       timestamp: new Date(),
     }
     setMessages((prev) => [...prev, userMessage])
-    setInput("")
     setIsTyping(true)
-
-    const stakeMatch = text.match(STAKE_REGEX)
-    const swapMatch = text.match(SWAP_REGEX)
-
-    if (stakeMatch) {
-      const amount = stakeMatch[1]
-      const coin = stakeMatch[3]
-      const response = `Processing your request to stake ${amount} ${coin}. Transaction initiated...`
-      setTimeout(() => {
-        setMessages((prev) => [...prev, {
-          id: Date.now().toString(),
-          content: response,
-          sender: "bot",
-          timestamp: new Date(),
-        }])
-        setIsTyping(false)
-      }, 600)
-      return
-    }
-
-    if (swapMatch) {
-      const response = "I'm preparing a swap transaction for you. Let me find the best rates..."
-      setTimeout(() => {
-        setMessages((prev) => [...prev, {
-          id: Date.now().toString(),
-          content: response,
-          sender: "bot",
-          timestamp: new Date(),
-        }])
-        setIsTyping(false)
-      }, 600)
-      return
-    }
-
-    const response = predefinedResponses[text] || "Let me look into that for you..."
-    setTimeout(() => {
-      const botMessage: Message = {
+    const response = await getWalletBalanceText()
+    setMessages((prev) => [
+      ...prev,
+      {
         id: Date.now().toString(),
         content: response,
         sender: "bot",
         timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, botMessage])
-      setIsTyping(false)
-    }, 600)
+      },
+    ])
+    setIsTyping(false)
+    return
   }
+
+  if (text === "Stake 1 SOL") {
+    setInput(text)
+    inputRef.current?.focus()
+    return
+  }
+
+  setInput(text)
+  inputRef.current?.focus()
+}
+
+
 
   const messageVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -564,4 +538,4 @@ if (
       </motion.div>
     </Card>
   )
-}
+  }
