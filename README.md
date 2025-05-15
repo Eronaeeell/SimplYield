@@ -60,7 +60,7 @@ Once you’ve installed everything, here’s how to interact with the assistant:
 
    If you wish to ***STAKE > SOL, mSOL , bSOL*** , prompt this
    ```bash
-   Stake { amount } to sol      (native)       --SOL
+   Stake { amount }             (native)       --SOL
    Stake { amount } sol to mSOL (liquid)       --mSOL
    Stake { amount } sol to bSOL (liquid)       --bSOL
    ```
