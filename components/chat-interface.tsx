@@ -22,10 +22,12 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { handleStakeToMSOLCommand, handleUnstakeMSOLCommand } from '@/stake-unstake/mSOL/liquid-stake-mSOL'
 import { useConnection } from '@solana/wallet-adapter-react'
 import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
+import { handleSendSolCommand } from "@/stake-unstake/SendSOL/send-sol"
 import { Transaction } from "@solana/web3.js"
 
 const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
 const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
+const SEND_REGEX = /^send\s+(\d+(?:\.\d+)?)\s+sol\s+to\s+([a-zA-Z0-9]{32,44})$/i
 
 type Message = {
   id: string
@@ -249,6 +251,28 @@ if (
         signTransaction,
         sendTransaction,
       })
+      if (reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: reply,
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
+        setIsTyping(false)
+        return
+      }
+    }
+
+    if (input.toLowerCase().startsWith("send") && SEND_REGEX.test(input)) {
+      const reply = await handleSendSolCommand(input, {
+        publicKey,
+        sendTransaction,
+        connection
+      })
+      
       if (reply) {
         setMessages((prev) => [
           ...prev,
