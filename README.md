@@ -13,6 +13,8 @@ SimplYield is an AI-powered assistant designed to simplify your DeFi experience.
 🚀 Features
 🔗 Solana Wallet Support (Phantom, Solflare, etc.)
 
+🕊️ Send SOLANA to your lovely fellows
+
 # 🚀 Getting Started with SimplYield
 Dependencies: What You'll Need
 * Node.js (version >= 18) — for running the app.
@@ -100,6 +102,14 @@ Once you’ve installed everything, here’s how to interact with the assistant:
    ```
 
    All the UNSTAKE can be found in the smae place on when STAKE
+
+   If you wish to _**SEND TRANSACTION **_, prompt this
+
+   ```bash
+   *Send Transaction
+
+   Send { amount } to 78gf71jo083ndbfi22f234we
+   
    
 4. Track your portfolio — see your balances and staking status.
 
