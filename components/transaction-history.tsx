@@ -45,7 +45,7 @@ export function TransactionHistory() {
   const fetchTransactions = async (walletPublicKey: PublicKey) => {
     setLoading(true);
     try {
-      const confirmedSignatures = await connection.getSignaturesForAddress(walletPublicKey, { limit: 10 });
+      const confirmedSignatures = await connection.getSignaturesForAddress(walletPublicKey, { limit: 2 });
       const transactions = await Promise.all(
         confirmedSignatures.map(async (signatureInfo) => {
           try {
