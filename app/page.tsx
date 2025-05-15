@@ -136,7 +136,7 @@ export default function Home() {
                   <div className="p-4 border-b border-gray-700 flex items-center">
                     <h3 className="font-medium text-white">Recent Transactions</h3>
                   </div>
-                  <TransactionHistory transactions={transactions} />
+                  <TransactionHistory />
                 </div>
               </div>
             </motion.div>
@@ -160,7 +160,7 @@ export default function Home() {
                 <div className="p-4 border-b border-gray-700 flex items-center">
                   <h3 className="font-medium text-white">Recent Transactions</h3>
                 </div>
-                <TransactionHistory transactions={transactions} />
+                <TransactionHistory/>
               </div>
             </motion.div>
           </motion.div>
