@@ -118,7 +118,8 @@ Common Issues:
 * Wallet Connection: Make sure your Solana wallet (e.g., Phantom) is properly set up and connected. Refresh the page if the connection is lost.
 * AI Chat Not Responding: Check that your OpenRouter API key is correctly added in the .env.local file. Without the key, the chat functionality won't work.
 * If the chatbot respond with **ERROR : {OBJECT ; object }**__ , try to prompt it 1 more time
+* Try to use the Refresh Button after staking in the RECENT TRANSACTION to show the updated TRANSACTION
 
 # 👨‍💻 Authors
-* Twitter: @SimplYield
+* X : @SimplYield_
 * GitHub: @SimplYield
