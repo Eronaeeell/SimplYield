@@ -108,7 +108,7 @@ Once you’ve installed everything, here’s how to interact with the assistant:
    ```bash
    *Send Transaction
 
-   Send { amount } to 78gf71jo083ndbfi22f234we
+   Send { amount } sol to 78gf71jo083ndbfi22f234we
    
    
 4. Track your portfolio — see your balances and staking status.
