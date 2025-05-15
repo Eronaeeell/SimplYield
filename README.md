@@ -71,34 +71,37 @@ Once you’ve installed everything, here’s how to interact with the assistant:
    If you wish to ***UNSTAKE > SOL, mSOL , bSOL*** , prompt this 
    ```bash
    *SOL /step by step
-   Unstake
+   
+   User > Unstake
    
    > Bot will reply with active accounts per number
    e.g.
    1. 1.0 SOL > 7gy7..019e
    2. 2.0 SOL > Gf8s..2eh7
    
-   Unstake { number }
+   User > Unstake { number }
    ```
    
    ```bash
    *mSOL /step by step
-   Unstake mSOL
+   
+   User > Unstake mSOL
    
    > Bot will reply with amount of mSOL stake available
    e.g. mSOL available 3.19 mSOL
    
-   Unstake { amount } mSOL
+   User > Unstake { amount } mSOL
    ```
    
    ```bash
    *bSOL /step by step
-   Unstake bSOL
+   
+   User > Unstake bSOL
    
    > Bot will reply with amount of mSOL stake available
    e.g. bSOL available 4.49 bSOL
    
-   Unstake { amount } bSOL
+   User > Unstake { amount } bSOL
    ```
 
    All the UNSTAKE can be found in the smae place on when STAKE
