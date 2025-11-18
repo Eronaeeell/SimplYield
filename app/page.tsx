@@ -114,7 +114,7 @@ export default function Home() {
           </motion.header>
 
           <motion.div className="container mx-auto p-4 flex flex-col lg:flex-row gap-4 flex-grow">
-            <motion.div className="flex-grow flex flex-col">
+            <motion.div className="flex-1 flex flex-col min-w-0">
               <ChatInterface/>
 
               <div className="block lg:hidden space-y-4 mt-6">

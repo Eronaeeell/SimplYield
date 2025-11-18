@@ -45,12 +45,20 @@ type SuggestionBubble = {
 
 export function ChatInterface() {
   const { publicKey, signTransaction, sendTransaction } = useWallet()
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      content: "Hey! 👋 I'm here to help with anything Solana DeFi related. What can I do for you today? 📊 ⚡",
+      sender: "bot",
+      timestamp: new Date(),
+    }
+  ])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [isInputFocused, setIsInputFocused] = useState(false)
+  const isStreamingRef = useRef(false)
   const { connection } = useConnection()
 
   const suggestions: SuggestionBubble[] = [
@@ -63,12 +71,17 @@ export function ChatInterface() {
   ]
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" })
+    }
   }
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    // Only auto-scroll when not streaming
+    if (!isStreamingRef.current) {
+      scrollToBottom()
+    }
+  }, [messages.length])
 
   const handleSendMessage = async () => {
     if (!input.trim()) return
@@ -275,47 +288,122 @@ if (
     }
     
     try {
-      const res = await axios.post("/api/chat", {
-        prompt: input,
-        messages: updated.map((m) => ({
-          role: m.sender === "user" ? "user" : "assistant",
-          content: m.content,
-        })),
-      })
-      const { reply } = res.data
+      // Create bot message placeholder with a unique ID
+      const botMessageId = `bot-${Date.now()}`
+      const botPlaceholder: Message = {
+        id: botMessageId,
+        content: "",
+        sender: "bot",
+        timestamp: new Date(),
+      }
+      
+      // Add bot placeholder to existing messages
+      setMessages((prev) => [...prev, botPlaceholder])
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: "",
-          sender: "bot",
-          timestamp: new Date(),
+      // Use fetch for streaming instead of axios
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ])
+        body: JSON.stringify({
+          prompt: input,
+          messages: updated.map((m) => ({
+            role: m.sender === "user" ? "user" : "assistant",
+            content: m.content,
+          })),
+        }),
+      })
 
-      let idx = 0
-      const interval = setInterval(() => {
-        idx++
-        const partial = reply.slice(0, idx)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ""
+      let lastUpdateTime = 0
+      isStreamingRef.current = true
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value)
+          fullContent += chunk
+
+          // Throttle updates to every 50ms for smoother rendering
+          const now = Date.now()
+          if (now - lastUpdateTime >= 50 || done) {
+            lastUpdateTime = now
+            
+            // Update message with accumulated content (line by line)
+            setMessages((prev) => {
+              const copy = [...prev]
+              const msgIndex = copy.findIndex((m) => m.id === botMessageId)
+              if (msgIndex !== -1) {
+                copy[msgIndex] = {
+                  ...copy[msgIndex],
+                  content: fullContent,
+                }
+              }
+              return copy
+            })
+          }
+        }
+        
+        // Final update to ensure all content is shown
         setMessages((prev) => {
           const copy = [...prev]
-          const last = copy.length - 1
-          if (copy[last]?.sender === "bot") {
-            copy[last] = {
-              ...copy[last],
-              content: partial,
+          const msgIndex = copy.findIndex((m) => m.id === botMessageId)
+          if (msgIndex !== -1) {
+            copy[msgIndex] = {
+              ...copy[msgIndex],
+              content: fullContent,
             }
           }
           return copy
         })
-        if (idx >= reply.length) {
-          clearInterval(interval)
-          setIsTyping(false)
-        }
-      }, 20)
-    } catch (err) {
+        
+        // Mark streaming as complete and scroll to bottom
+        isStreamingRef.current = false
+        setTimeout(() => {
+          scrollToBottom()
+        }, 100)
+      }
+
+      setIsTyping(false)
+    } catch (err: any) {
       console.error("Chat error:", err)
+      
+      let errorMessage = "An error occurred while processing your request."
+      
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        errorMessage = "Request timed out. Please try again."
+      } else if (err.response?.status === 401) {
+        errorMessage = "Authentication failed. Please check API configuration."
+      } else if (err.response?.status === 429) {
+        errorMessage = "Rate limit exceeded. Please wait a moment and try again."
+      } else if (err.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later."
+      } else if (err.response?.data?.error) {
+        errorMessage = typeof err.response.data.error === 'string' 
+          ? err.response.data.error 
+          : err.response.data.error.message || "API error occurred"
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: `❌ ${errorMessage}`,
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
       setIsTyping(false)
     }
   }
@@ -370,13 +458,18 @@ const handleSuggestionClick = async (text: string) => {
 
 
   const messageVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
-    exit: { opacity: 0, x: 100, transition: { duration: 0.2 } },
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        duration: 0.3
+      } 
+    },
+    exit: { opacity: 0, transition: { duration: 0.2 } },
   }
 
   return (
-    <Card className="flex flex-col h-full bg-gradient-to-b from-gray-800/80 to-gray-900/90 border-gray-700 rounded-xl overflow-hidden shadow-xl relative">
+    <Card className="flex flex-col h-full max-h-[700px] w-full bg-gradient-to-b from-gray-800/80 to-gray-900/90 border-gray-700 rounded-xl overflow-hidden shadow-xl relative">
       {/* Header */}
       <motion.div
         className="p-4 border-b border-gray-700/50 bg-gray-800/70 backdrop-blur-sm relative z-10"
@@ -407,10 +500,10 @@ const handleSuggestionClick = async (text: string) => {
       </motion.div>
 
       {/* Messages */}
-      <ScrollArea className="flex-grow p-4 relative z-10 h-[400px] md:h-[500px]">
+      <ScrollArea className="flex-grow p-4 relative z-10 h-[400px] md:h-[500px] scroll-smooth">
         <div className="space-y-6">
           <AnimatePresence>
-            {messages.map((msg) => (
+            {messages.filter(msg => msg.content.trim() !== "").map((msg) => (
               <motion.div
                 key={msg.id}
                 className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
@@ -425,18 +518,38 @@ const handleSuggestionClick = async (text: string) => {
                   }`}
                 >
                   {/* Avatar circle… */}
-                  <motion.div
-                    className={`rounded-2xl p-4 ${
+                  <div
+                    className={`rounded-2xl p-4 flex-1 min-w-0 overflow-hidden ${
                       msg.sender === "user"
                         ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-tr-none shadow-lg shadow-purple-900/10"
                         : "bg-gradient-to-br from-gray-700/90 to-gray-800/90 text-white border border-gray-700/50 rounded-tl-none shadow-lg shadow-gray-900/10"
                     }`}
-                    whileHover={{ scale: 1.02 }}
                   >
-                    {/* ← Here’s the Markdown rendering */}
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
-                    </ReactMarkdown>
+                    {/* Markdown rendering with custom styling */}
+                    <div className={`break-words ${msg.sender === "bot" ? "chat-markdown" : ""}`}>
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-3 mt-5 text-purple-300 border-b border-purple-500/30 pb-2" {...props} />,
+                          h3: ({node, ...props}) => <h3 className="text-lg font-semibold mb-2 mt-4 text-blue-300" {...props} />,
+                          p: ({node, ...props}) => <p className="mb-3 text-gray-100 leading-relaxed" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-bold text-white bg-purple-500/20 px-1 rounded" {...props} />,
+                          code: ({node, inline, className, children, ...props}: any) => 
+                            inline ? (
+                              <code className="bg-gray-900/60 text-purple-300 px-2 py-0.5 rounded font-mono text-sm border border-purple-500/30" {...props}>{children}</code>
+                            ) : (
+                              <code className="block bg-gray-900/80 p-4 rounded-lg mb-4 overflow-x-auto border border-gray-700 text-green-300" {...props}>{children}</code>
+                            ),
+                          ul: ({node, ...props}) => <ul className="list-disc list-outside ml-5 mb-4 space-y-2" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-5 mb-4 space-y-2" {...props} />,
+                          li: ({node, ...props}) => <li className="text-gray-100 leading-relaxed pl-1" {...props} />,
+                          blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-yellow-500 bg-yellow-500/10 pl-4 py-2 mb-4 italic text-yellow-100" {...props} />,
+                          hr: ({node, ...props}) => <hr className="border-gray-600 my-6" {...props} />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                     <div
                       className={`text-xs mt-2 flex justify-end ${
                         msg.sender === "user" ? "text-purple-200/70" : "text-gray-400/70"
@@ -447,7 +560,7 @@ const handleSuggestionClick = async (text: string) => {
                         minute: "2-digit",
                       })}
                     </div>
-                  </motion.div>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -457,9 +570,9 @@ const handleSuggestionClick = async (text: string) => {
           {isTyping && (
             <motion.div
               className="flex justify-start"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
               <div className="flex items-start gap-3 max-w-[85%]">
