@@ -120,30 +120,58 @@ export async function chatWithSolanaBot(
     };
   }
 
-  try {
-    const response = await axios.post(
-      OPENROUTER_URL,
-      {
-        model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
-        messages: [systemMessage, ...conversation],
-        temperature: 0.7,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://simplYield.vercel.app",
-          "X-Title": "SimplYield Assistant",
-        },
-        timeout: 15000,
+  // Retry logic with exponential backoff
+  const maxRetries = 3;
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Wait before retry (exponential backoff: 1s, 2s, 4s)
+      if (attempt > 0) {
+        const waitTime = Math.pow(2, attempt - 1) * 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
-    );
 
-    const botReply = response.data.choices[0].message.content;
-    conversation.push({ role: "assistant", content: botReply });
+      const response = await axios.post(
+        OPENROUTER_URL,
+        {
+          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          messages: [systemMessage, ...conversation],
+          temperature: 0.7,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://simplYield.vercel.app",
+            "X-Title": "SimplYield Assistant",
+          },
+          timeout: 20000,
+        }
+      );
 
-    return { reply: botReply, updatedMessages: conversation };
-  } catch (error: any) {
+      const botReply = response.data.choices[0].message.content;
+      conversation.push({ role: "assistant", content: botReply });
+
+      return { reply: botReply, updatedMessages: conversation };
+    } catch (error: any) {
+      lastError = error;
+      
+      // If not a rate limit error, don't retry
+      if (error.response?.status !== 429) {
+        break;
+      }
+      
+      // If this was the last attempt, break
+      if (attempt === maxRetries - 1) {
+        break;
+      }
+    }
+  }
+
+  // Handle error after all retries
+  const error = lastError;
+  if (error) {
     console.error("OpenRouter API Error:", {
       message: error.message,
       response: error.response?.data,
@@ -155,19 +183,24 @@ export async function chatWithSolanaBot(
       }
     });
     
-    let errorMessage = "AI service temporarily unavailable";
+    let errorMessage = "Let me try to help you with that.";
     
     if (error.response?.status === 401) {
-      errorMessage = "API authentication failed";
+      errorMessage = "Authentication issue detected. Please refresh and try again.";
     } else if (error.response?.status === 429) {
-      errorMessage = "Rate limit exceeded. Please try again later";
+      errorMessage = "High traffic detected. Your question is important - just give me a moment and ask again!";
     } else if (error.response?.status === 400) {
-      errorMessage = "Invalid request format";
+      errorMessage = "I had trouble understanding that. Could you rephrase your question?";
     }
     
     return {
-      reply: `I'm having trouble processing your request right now. ${errorMessage}`,
+      reply: `${errorMessage}`,
       updatedMessages: conversation,
     };
   }
+  
+  return {
+    reply: "I apologize, but I encountered an unexpected issue. Please try asking your question again.",
+    updatedMessages: conversation,
+  };
 }
