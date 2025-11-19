@@ -469,38 +469,9 @@ const handleSuggestionClick = async (text: string) => {
   }
 
   return (
-    <Card className="flex flex-col h-full max-h-[700px] w-full bg-gradient-to-b from-gray-800/80 to-gray-900/90 border-gray-700 rounded-xl overflow-hidden shadow-xl relative">
-      {/* Header */}
-      <motion.div
-        className="p-4 border-b border-gray-700/50 bg-gray-800/70 backdrop-blur-sm relative z-10"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <motion.div
-              className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-900/20"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <MessageSquare className="h-5 w-5 text-white" />
-            </motion.div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">SimplYield Assistant</h2>
-            </div>
-          </div>
-          <motion.div className="flex items-center space-x-1" whileHover={{ scale: 1.05 }}>
-            <div className="px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-xs font-medium text-purple-300 flex items-center">
-              <Sparkles className="h-3 w-3 mr-1.5" />
-              <span>AI Powered</span>
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
-
+    <Card className="flex flex-col h-full max-h-[700px] w-full bg-transparent border-transparent rounded-xl overflow-hidden shadow-none relative">
       {/* Messages */}
-      <ScrollArea className="flex-grow p-4 relative z-10 h-[400px] md:h-[500px] scroll-smooth">
+      <ScrollArea className="flex-grow p-4 relative z-10 h-[280px] md:h-[470px] scroll-smooth">
         <div className="space-y-6">
           <AnimatePresence>
             {messages.filter(msg => msg.content.trim() !== "").map((msg) => (
@@ -519,14 +490,14 @@ const handleSuggestionClick = async (text: string) => {
                 >
                   {/* Avatar circle… */}
                   <div
-                    className={`rounded-2xl p-4 flex-1 min-w-0 overflow-hidden ${
+                    className={`rounded-2xl p-3 flex-1 min-w-0 overflow-hidden text-sm ${
                       msg.sender === "user"
                         ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-tr-none shadow-lg shadow-purple-900/10"
                         : "bg-gradient-to-br from-gray-700/90 to-gray-800/90 text-white border border-gray-700/50 rounded-tl-none shadow-lg shadow-gray-900/10"
                     }`}
                   >
                     {/* Markdown rendering with custom styling */}
-                    <div className={`break-words ${msg.sender === "bot" ? "chat-markdown" : ""}`}>
+                    <div className={`break-words text-sm ${msg.sender === "bot" ? "chat-markdown" : ""}`}>
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -600,14 +571,14 @@ const handleSuggestionClick = async (text: string) => {
       </ScrollArea>
 
       {/* Suggestions */}
-      <motion.div className="px-4 py-3 border-t border-gray-700/30 bg-gray-800/40 backdrop-blur-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+      <motion.div className="px-4 pt-2 pb-1 border-transparent bg-transparent" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
           <p className="text-xs text-gray-400 whitespace-nowrap">Try asking:</p>
           {suggestions.map((s, i) => (
             <motion.button
               key={s.id}
               onClick={() => handleSuggestionClick(s.text)}
-              className="flex items-center gap-1.5 px-2 py-1 bg-gray-700/70 hover:bg-gray-700 text-gray-300 hover:text-white rounded-full text-xs whitespace-nowrap transition-colors border border-gray-600/50 hover:border-purple-500/50"
+              className="flex items-center gap-1.5 px-2 py-1 bg-transparent hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-full text-xs whitespace-nowrap transition-colors border border-gray-600/30 hover:border-purple-500/50"
               whileHover={{ scale: 1.05, x: 3 }}
               whileTap={{ scale: 0.95 }}
               initial={{ opacity: 0, x: -20 }}
@@ -622,7 +593,7 @@ const handleSuggestionClick = async (text: string) => {
       </motion.div>
 
       {/* Input */}
-      <motion.div className="p-4 border-t border-gray-700/50 bg-gray-800/70 backdrop-blur-sm relative z-10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+      <motion.div className="px-4 pt-1 pb-4 border-transparent bg-transparent relative z-10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
         <div className="flex space-x-2">
           <div className="relative flex-grow">
             <motion.div className={`rounded-xl overflow-hidden ${isInputFocused ? "ring-2 ring-purple-500" : ""}`} transition={{ duration: 0.3 }}>
@@ -634,7 +605,7 @@ const handleSuggestionClick = async (text: string) => {
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => setIsInputFocused(false)}
                 placeholder="Type a message or command..."
-                className="bg-gray-700/70 border-gray-600 text-white focus:ring-purple-500 focus:border-purple-500 pl-4 pr-10 py-6 rounded-xl transition-all duration-300"
+                className="bg-transparent border-gray-600/30 text-white focus:ring-purple-500 focus:border-purple-500 pl-4 pr-10 py-6 rounded-xl transition-all duration-300"
               />
             </motion.div>
             <motion.button

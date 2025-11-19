@@ -8,7 +8,7 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
 import { ChatInterface } from "@/components/chat-interface"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { PageTransition } from "@/components/ui/page-transition"
-import { Shield, Sparkles, MessageSquare, Wallet, BarChart2 } from "lucide-react"
+import { Shield, Sparkles, MessageSquare, Wallet, BarChart2, RefreshCcw } from "lucide-react"
 import { TransactionHistory } from "@/components/transaction-history"
 import { MiniNotification } from "@/components/ui/mini-notification"
 import { useConnection } from "@solana/wallet-adapter-react"
@@ -91,76 +91,79 @@ export default function Home() {
     return (
       <PageTransition>
         <main className="flex min-h-screen flex-col bg-gray-900">
-          <motion.header className="border-b border-gray-800 p-4">
-            <div className="container mx-auto flex justify-between items-center">
-              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 text-transparent bg-clip-text">
-                <span className="font-extrabold">Simpl</span>Yield
-              </h1>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700">
-                  <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                  <span className="text-sm text-gray-300 font-medium">
-                    {`${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`}
-                  </span>
-                </div>
-                <button
-                  className="px-4 py-2 rounded-lg text-base bg-red-600 text-white hover:bg-red-700"
-                  onClick={disconnect}
+          <motion.header className="backdrop-blur-md bg-gray-900/80 border-b border-gray-700/50 sticky top-0 z-50">
+            <div className="container mx-auto px-6 py-4">
+              <div className="flex justify-between items-center">
+                {/* Logo */}
+                <motion.h1 
+                  className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 text-transparent bg-clip-text"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  Disconnect Wallet
-                </button>
+                  <span className="font-extrabold">Simpl</span>Yield
+                </motion.h1>
+
+                {/* Right Section */}
+                <div className="flex items-center gap-3">
+                  {/* Portfolio Button */}
+                  <motion.button
+                    onClick={() => router.push("/portfolio")}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 flex items-center gap-2 shadow-lg shadow-purple-500/20 transition-all"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <BarChart2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Portfolio</span>
+                  </motion.button>
+
+                  {/* Wallet Address Badge */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                      <span className="text-xs md:text-sm text-gray-300 font-mono">
+                        {`${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Disconnect Button */}
+                  <motion.button
+                    className="px-4 py-2 rounded-xl bg-red-600/90 text-white text-sm font-medium hover:bg-red-700 transition-all shadow-lg shadow-red-500/20"
+                    onClick={disconnect}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span className="hidden sm:inline">Disconnect</span>
+                    <span className="sm:hidden">✕</span>
+                  </motion.button>
+                </div>
               </div>
             </div>
           </motion.header>
 
-          <motion.div className="container mx-auto p-4 flex flex-col lg:flex-row gap-4 flex-grow">
-            <motion.div className="flex-1 flex flex-col min-w-0">
+          <motion.div className="container mx-auto p-4 flex flex-col items-center gap-6 flex-grow max-w-5xl">
+            <motion.div className="w-full">
               <ChatInterface/>
-
-              <div className="block lg:hidden space-y-4 mt-6">
-                <div className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
-                  <button
-                    onClick={() => router.push("/portfolio")}
-                    className="relative w-full py-3 px-5 text-base font-semibold flex items-center justify-center gap-3 rounded-xl z-10 overflow-hidden border border-purple-500/40 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-purple-800 hover:to-indigo-800 transition-all duration-300 shadow-md hover:shadow-purple-500/20"
-                  >
-                    <div className="relative flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-inner shadow-white/10">
-                      <BarChart2 className="h-4 w-4 text-white animate-pulse" />
-                      <div className="absolute h-1.5 w-1.5 rounded-full bg-blue-400 animate-orbit opacity-70" />
-                    </div>
-                    <span className="text-white tracking-wide">View Portfolio</span>
-                  </button>
-                </div>
-
-                <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
-                  <div className="p-4 border-b border-gray-700 flex items-center">
-                    <h3 className="font-medium text-white">Recent Transactions</h3>
-                  </div>
-                  <TransactionHistory />
-                </div>
-              </div>
             </motion.div>
 
-            <motion.div className="hidden lg:block w-full lg:w-[28rem] space-y-4">
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-600 rounded-xl blur-md opacity-70 group-hover:opacity-100 transition duration-300"></div>
-                <button
-                  onClick={() => router.push("/portfolio")}
-                  className="relative w-full py-3 px-5 text-base font-semibold flex items-center justify-center gap-3 rounded-xl z-10 overflow-hidden border border-purple-500/40 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-purple-800 hover:to-indigo-800 transition-all duration-300 shadow-md hover:shadow-purple-500/20"
-                >
-                  <div className="relative flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-inner shadow-white/10">
-                    <BarChart2 className="h-4 w-4 text-white animate-pulse" />
-                    <div className="absolute h-1.5 w-1.5 rounded-full bg-blue-400 animate-orbit opacity-70" />
-                  </div>
-                  <span className="text-white tracking-wide">View Portfolio</span>
-                </button>
-              </div>
-
+            <motion.div className="w-full max-w-xl">
               <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
-                <div className="p-4 border-b border-gray-700 flex items-center">
+                <div className="p-4 border-b border-gray-700 flex items-center justify-between">
                   <h3 className="font-medium text-white">Recent Transactions</h3>
+                  <button
+                    onClick={() => {
+                      // Trigger refresh via custom event
+                      window.dispatchEvent(new CustomEvent('refresh-transactions'));
+                    }}
+                    className="flex items-center justify-center text-white border border-blue-600 rounded-full px-3 py-1 text-sm hover:bg-blue-600/20 transition-colors"
+                  >
+                    <RefreshCcw className="h-3 w-3 mr-1" /> Refresh
+                  </button>
                 </div>
-                <TransactionHistory/>
+                <TransactionHistory />
               </div>
             </motion.div>
           </motion.div>

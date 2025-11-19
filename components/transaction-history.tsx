@@ -42,6 +42,17 @@ export function TransactionHistory() {
     }
   }, [publicKey, connected]);
 
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      if (publicKey && connected) {
+        fetchTransactions(publicKey);
+      }
+    };
+    
+    window.addEventListener('refresh-transactions', handleRefreshEvent);
+    return () => window.removeEventListener('refresh-transactions', handleRefreshEvent);
+  }, [publicKey, connected]);
+
   const fetchTransactions = async (walletPublicKey: PublicKey) => {
     setLoading(true);
     try {
@@ -217,14 +228,6 @@ export function TransactionHistory() {
   return (
     <ScrollArea className="h-[320px]">
       <div className="px-4 py-2">
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={handleRefresh}
-            className="flex items-center justify-center text-white border border-blue-600 rounded-full px-3 py-1 text-sm"
-          >
-            <RefreshCcw className="h-3 w-3 mr-1" /> Refresh
-          </button>
-        </div>
         {txData.length === 0 ? (
           <div className="text-center py-8 text-gray-500">No transactions yet</div>
         ) : (
