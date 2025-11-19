@@ -1,0 +1,13 @@
+{
+  "name": "simplyield-nlu",
+  "version": "1.0.0",
+  "description": "NLU evaluation scripts for SimplYield",
+  "scripts": {
+    "evaluate": "ts-node lib/nlu/test-nlu.ts",
+    "test-nlu": "ts-node lib/nlu/test-nlu.ts"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}

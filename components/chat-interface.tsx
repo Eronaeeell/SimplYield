@@ -25,10 +25,7 @@ import { handleStakeToBSOLCommand } from '@/stake-unstake/bSOL/stake-to-bsol'
 import { handleSendSolCommand } from "@/stake-unstake/SendSOL/send-sol"
 import { Transaction } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
-
-const STAKE_REGEX = /^stake\s+(\d+(\.\d+)?)\s+(\w+)$/i
-const SWAP_REGEX = /^swap\s+(\d+(\.\d+)?)\s+(\w+)\s+to\s+(\w+)$/i
-const SEND_REGEX = /^send\s+(\d+(?:\.\d+)?)\s+sol\s+to\s+([a-zA-Z0-9]{32,44})$/i
+import { getNLUService, INTENTS } from "@/lib/nlu/nlu-service"
 
 type Message = {
   id: string
@@ -60,6 +57,13 @@ export function ChatInterface() {
   const [isInputFocused, setIsInputFocused] = useState(false)
   const isStreamingRef = useRef(false)
   const { connection } = useConnection()
+  const nluService = getNLUService()
+  const [pendingIntent, setPendingIntent] = useState<{ intent: string; entities: any } | null>(null)
+
+  // Initialize NLU service on mount
+  useEffect(() => {
+    nluService.initialize().catch(console.error)
+  }, [])
 
   const suggestions: SuggestionBubble[] = [
     { id: "s1", text: "Stake 1 SOL", icon: <Sparkles className="h-3 w-3" /> },
@@ -97,181 +101,172 @@ export function ChatInterface() {
     setInput("")
     setIsTyping(true)
 
-    const stakeMatch = input.match(STAKE_REGEX)
-    const swapMatch = input.match(SWAP_REGEX)
-
-    if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol")) {
-    if (!publicKey || !signTransaction || !connection) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: "❌ Wallet not connected. Please connect your wallet to proceed.",
-          sender: "bot",
-          timestamp: new Date(),
-        },
-      ])
-      setIsTyping(false)
-      return
-    }
-
-    const reply = await handleStakeToBSOLCommand(input, {
-      publicKey,
-      signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
-      connection,
-    });
-
-    if (reply) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: reply,
-          sender: "bot",
-          timestamp: new Date(),
-        },
-      ])
-      setIsTyping(false)
-      return
-    }
-  }
-
-    if (input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to msol")) {
-      const reply = await handleStakeToMSOLCommand(input, {
-        publicKey,
-        signTransaction,
-        sendTransaction,
-        connection
-      })
-      if (reply) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            content: reply,
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ])
-        setIsTyping(false)
-        return
-      }
-    }
-    
-if (
-  input.toLowerCase().startsWith("stake") && input.toLowerCase().includes("to bsol") ||
-  input.trim().toLowerCase() === "unstake bsol" ||
-  /^unstake\s+\d+(\.\d+)?\s+bsol$/i.test(input)
-) {
-  if (!publicKey || !signTransaction || !connection) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        content: "❌ Wallet not connected. Please connect your wallet to proceed.",
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ]);
-    setIsTyping(false);
-    return;
-  }
-
-  const reply = await handleStakeToBSOLCommand(input, {
-    publicKey,
-    signTransaction,
-    connection,
-  });
-
-  if (reply) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        content: reply,
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ]);
-    setIsTyping(false);
-    return;
-  }
-}
-
-if (
-  input.toLowerCase().startsWith("unstake msol") ||
-  /^unstake\s+\d+(\.\d+)?\s+msol$/i.test(input)
-) {
-  const reply = await handleUnstakeMSOLCommand(input, {
-    publicKey,
-    signTransaction,
-    sendTransaction,
-    connection
-  })
-  if (reply) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        content: reply,
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ])
-    setIsTyping(false)
-    return
-  }
-}
-
-    if (input.toLowerCase().startsWith("stake")) {
-      const reply = await handleStakingCommand(input, {
-        publicKey,
-        signTransaction,
-        sendTransaction,
-      })
-      if (reply) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            content: reply,
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ])
-        setIsTyping(false)
-        return
-      }
-    }
-    
-    if (input.toLowerCase().startsWith("unstake")) {
-      const reply = await handleUnstakingCommand(input, {
-        publicKey,
-        signTransaction,
-        sendTransaction,
-      })
-      if (reply) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            content: reply,
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ])
-        setIsTyping(false)
-        return
-      }
-    }
-
-    if (input.toLowerCase().startsWith("send") && SEND_REGEX.test(input)) {
-      const reply = await handleSendSolCommand(input, {
-        publicKey,
-        sendTransaction,
-        connection
-      })
+    // ========== AI-POWERED NLU PROCESSING ==========
+    try {
+      // Process input with NLU
+      let nluResult = await nluService.processInput(input)
       
+      // Check if user is providing missing info from previous request
+      if (pendingIntent && nluResult.entities.amount && !nluResult.valid) {
+        // User might be answering with just the amount
+        nluResult = {
+          ...pendingIntent,
+          entities: {
+            ...pendingIntent.entities,
+            ...nluResult.entities
+          },
+          valid: true,
+          originalText: input
+        } as any
+        setPendingIntent(null)
+      }
+      
+      console.log('🤖 NLU Result:', {
+        intent: nluResult.intent,
+        confidence: nluResult.confidence,
+        entities: nluResult.entities,
+        valid: nluResult.valid,
+        pendingIntent: pendingIntent ? 'yes' : 'no'
+      })
+
+      // Check if wallet is needed for this intent
+      const walletRequiredIntents: string[] = [
+        INTENTS.STAKE_NATIVE,
+        INTENTS.STAKE_MSOL,
+        INTENTS.STAKE_BSOL,
+        INTENTS.UNSTAKE_NATIVE,
+        INTENTS.UNSTAKE_MSOL,
+        INTENTS.UNSTAKE_BSOL,
+        INTENTS.SEND,
+        INTENTS.BALANCE,
+      ]
+
+      if (walletRequiredIntents.includes(nluResult.intent) && !publicKey) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: "❌ Wallet not connected. Please connect your wallet to proceed.",
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
+        setIsTyping(false)
+        return
+      }
+
+      // Validate entities
+      if (!nluResult.valid) {
+        // Store the pending intent so user can provide missing info in next message
+        setPendingIntent({
+          intent: nluResult.intent,
+          entities: nluResult.entities
+        })
+        
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: nluResult.errorMessage || "I need more information to complete this request.",
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
+        setIsTyping(false)
+        return
+      }
+      
+      // Clear pending intent when we have a valid command
+      setPendingIntent(null)
+
+      // Route to appropriate handler based on intent
+      let reply: string | null = null
+
+      switch (nluResult.intent) {
+        case INTENTS.STAKE_NATIVE:
+          reply = await handleStakingCommand(
+            `stake ${nluResult.entities.amount} sol`,
+            { publicKey, signTransaction, sendTransaction }
+          )
+          break
+
+        case INTENTS.STAKE_MSOL:
+          reply = await handleStakeToMSOLCommand(
+            `stake ${nluResult.entities.amount} to msol`,
+            { publicKey, signTransaction, sendTransaction, connection }
+          )
+          break
+
+        case INTENTS.STAKE_BSOL:
+          if (!signTransaction || !publicKey) {
+            reply = "❌ Transaction signing not available"
+            break
+          }
+          reply = await handleStakeToBSOLCommand(
+            `stake ${nluResult.entities.amount} to bsol`,
+            {
+              publicKey,
+              signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
+              connection,
+            }
+          )
+          break
+
+        case INTENTS.UNSTAKE_NATIVE:
+          if (publicKey) {
+            reply = await handleUnstakingCommand(
+              `unstake ${nluResult.entities.amount} sol`,
+              { publicKey, signTransaction, sendTransaction }
+            )
+          }
+          break
+
+        case INTENTS.UNSTAKE_MSOL:
+          if (publicKey) {
+            reply = await handleUnstakeMSOLCommand(
+              `unstake ${nluResult.entities.amount} msol`,
+              { publicKey, signTransaction, sendTransaction, connection }
+            )
+          }
+          break
+
+        case INTENTS.UNSTAKE_BSOL:
+          if (!signTransaction || !publicKey) {
+            reply = "❌ Transaction signing not available"
+            break
+          }
+          reply = await handleStakeToBSOLCommand(
+            `unstake ${nluResult.entities.amount} bsol`,
+            {
+              publicKey,
+              signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
+              connection,
+            }
+          )
+          break
+
+        case INTENTS.SEND:
+          reply = await handleSendSolCommand(
+            `send ${nluResult.entities.amount} sol to ${nluResult.entities.address}`,
+            { publicKey, sendTransaction, connection }
+          )
+          break
+
+        case INTENTS.BALANCE:
+          if (publicKey) {
+            const lamports = await connection.getBalance(publicKey)
+            const sol = lamports / LAMPORTS_PER_SOL
+            reply = `Your current balance is **${sol.toFixed(4)} SOL**`
+          }
+          break
+
+        default:
+          // For EXPLAIN, PRICE, MARKET_DATA, fall through to chatbot
+          reply = null
+          break
+      }
+
+      // If a command handler returned a reply, show it
       if (reply) {
         setMessages((prev) => [
           ...prev,
@@ -285,6 +280,9 @@ if (
         setIsTyping(false)
         return
       }
+    } catch (nluError) {
+      console.error('NLU processing error:', nluError)
+      // Fall through to chatbot on NLU error
     }
     
     try {
