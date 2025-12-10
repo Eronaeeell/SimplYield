@@ -108,9 +108,9 @@ export default function Home() {
                   {/* Portfolio Button */}
                   <motion.button
                     onClick={() => router.push("/portfolio")}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 flex items-center gap-2 shadow-lg shadow-purple-500/20 transition-all"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 rounded-lg border border-gray-700/50 bg-gray-800/50 text-gray-300 text-sm font-medium hover:border-purple-500/50 hover:bg-gray-800/80 flex items-center gap-2 backdrop-blur-sm transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     <BarChart2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Portfolio</span>
