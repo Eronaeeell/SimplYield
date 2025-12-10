@@ -162,6 +162,18 @@ export const generateTrainingData = (): TrainingExample[] => {
     "could you unstake {amount} sol",
   ];
 
+  // Patterns without amount (shows account selector)
+  const unstakeNativeNoAmountTemplates = [
+    "unstake sol",
+    "unstake SOL",
+    "unstake native sol",
+    "i want to unstake sol",
+    "can you unstake sol for me",
+    "please unstake sol",
+    "unstake native",
+    "unstaking sol",
+  ];
+
   unstakeNativeTemplates.forEach(template => {
     amounts.forEach(amount => {
       data.push({
@@ -169,6 +181,15 @@ export const generateTrainingData = (): TrainingExample[] => {
         intent: INTENTS.UNSTAKE_NATIVE,
         entities: { amount, token: 'SOL' },
       });
+    });
+  });
+
+  // Add no-amount patterns (amount will be selected from account list)
+  unstakeNativeNoAmountTemplates.forEach(template => {
+    data.push({
+      text: template,
+      intent: INTENTS.UNSTAKE_NATIVE,
+      entities: { token: 'SOL' },
     });
   });
 

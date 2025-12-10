@@ -16,6 +16,7 @@ export type PendingTransaction = {
   estimatedFee?: number
   status?: 'pending' | 'success' | 'failed'
   transactionSignature?: string
+  remainingBalance?: number
 }
 
 type TransactionConfirmationProps = {
@@ -23,7 +24,7 @@ type TransactionConfirmationProps = {
   onApprove: () => void
   onDecline: () => void
   onEdit?: (newAmount: number) => void
-  onViewDetails?: () => void
+  onViewDetails?: (txData?: PendingTransaction) => void
 }
 
 export function TransactionConfirmation({ 
@@ -110,12 +111,22 @@ export function TransactionConfirmation({
               </p>
             </div>
           )}
+          
+          {/* Remaining Balance (for success status) */}
+          {transaction.status === 'success' && transaction.remainingBalance !== undefined && (
+            <div className="text-center py-2 border-t border-slate-700/50 mt-2">
+              <p className="text-xs text-slate-500 mb-1">Remaining Balance</p>
+              <p className="text-lg font-semibold text-green-400">
+                {transaction.remainingBalance.toFixed(4)} {transaction.token.toUpperCase()}
+              </p>
+            </div>
+          )}
 
           {/* Action Buttons */}
           {transaction.status === 'success' ? (
             <div className="flex justify-center pt-2">
               <Button
-                onClick={onViewDetails}
+                onClick={() => onViewDetails?.(transaction)}
                 variant="outline"
                 className="border border-blue-600 bg-transparent hover:bg-blue-700/50 text-blue-400 hover:text-blue-300 transition-all duration-200 px-8"
               >

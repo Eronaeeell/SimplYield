@@ -27,6 +27,8 @@ import { Transaction } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import { getNLUService, INTENTS } from "@/lib/nlu/nlu-service"
 import { TransactionConfirmation, PendingTransaction } from "@/components/transaction-confirmation"
+import { StakeAccountSelector, StakeAccount } from "@/components/stake-account-selector"
+import { getUserStakeAccounts } from "@/lib/getUserStakeAccounts"
 
 type Message = {
   id: string
@@ -34,6 +36,10 @@ type Message = {
   sender: "user" | "bot"
   timestamp: Date
   transactionData?: PendingTransaction
+  stakeAccountsData?: {
+    accounts: StakeAccount[]
+    action: 'unstake' | 'withdraw'
+  }
 }
 
 type SuggestionBubble = {
@@ -55,6 +61,8 @@ export function ChatInterface() {
   const nluService = getNLUService()
   const [pendingIntent, setPendingIntent] = useState<{ intent: string; entities: any } | null>(null)
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction & { nluResult: any } | null>(null)
+  const [cachedStakeAccounts, setCachedStakeAccounts] = useState<StakeAccount[]>([])
+  const [unstakeAction, setUnstakeAction] = useState<'unstake' | 'withdraw' | null>(null)
 
   // Initialize NLU service on mount
   useEffect(() => {
@@ -166,8 +174,9 @@ export function ChatInterface() {
         return
       }
 
-      // Validate entities
-      if (!nluResult.valid) {
+      // Validate entities - but for UNSTAKE_NATIVE, we don't need amount validation
+      // because we show the account selector
+      if (!nluResult.valid && nluResult.intent !== INTENTS.UNSTAKE_NATIVE) {
         // Store the pending intent so user can provide missing info in next message
         setPendingIntent({
           intent: nluResult.intent,
@@ -191,6 +200,7 @@ export function ChatInterface() {
       setPendingIntent(null)
 
       // Route to appropriate handler based on intent
+      console.log('🎯 Routing to intent:', nluResult.intent)
       let reply: string | null = null
 
       switch (nluResult.intent) {
@@ -269,28 +279,66 @@ export function ChatInterface() {
           return
 
         case INTENTS.UNSTAKE_NATIVE:
+          console.log('🔍 UNSTAKE_NATIVE detected, publicKey:', publicKey?.toString())
           if (publicKey) {
-            const unstakeTransaction: PendingTransaction = {
-              id: Date.now().toString(),
-              type: 'unstake',
-              token: 'sol',
-              amount: nluResult.entities.amount,
-              estimatedFee: 0.00001,
-              nluResult
-            }
-            setPendingTransaction(unstakeTransaction)
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Date.now().toString(),
-                content: '',
-                sender: 'bot',
-                timestamp: new Date(),
-                transactionData: unstakeTransaction
+            // For native SOL unstaking, ALWAYS show account selector first
+            // (user needs to pick which stake account to unstake from)
+            setIsTyping(true)
+            try {
+              console.log('📋 Fetching stake accounts...')
+              const allAccounts = await getUserStakeAccounts(publicKey, connection)
+              console.log('📋 All accounts:', allAccounts.length)
+              const activeAccounts = allAccounts.filter((a) => a.status === 'active')
+              console.log('✅ Active accounts:', activeAccounts.length)
+              
+              if (activeAccounts.length === 0) {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: Date.now().toString(),
+                    content: "❌ No active stake accounts found.",
+                    sender: "bot",
+                    timestamp: new Date(),
+                  },
+                ])
+                setIsTyping(false)
+                return
               }
-            ])
-            setIsTyping(false)
-            return
+              
+              // Store accounts and show selector
+              console.log('💾 Storing accounts and showing selector...')
+              setCachedStakeAccounts(activeAccounts)
+              setUnstakeAction('unstake')
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  content: '',
+                  sender: 'bot',
+                  timestamp: new Date(),
+                  stakeAccountsData: {
+                    accounts: activeAccounts,
+                    action: 'unstake'
+                  }
+                }
+              ])
+              console.log('✅ Account selector message added')
+              setIsTyping(false)
+              return
+            } catch (error) {
+              console.error('Error fetching stake accounts:', error)
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  content: "❌ Failed to fetch stake accounts.",
+                  sender: "bot",
+                  timestamp: new Date(),
+                },
+              ])
+              setIsTyping(false)
+              return
+            }
           }
           break
 
@@ -621,6 +669,44 @@ const handleSuggestionClick = async (text: string) => {
         }
       }
       
+      // Fetch updated balance after transaction
+      let remainingBalance: number | undefined
+      if (publicKey && connection) {
+        try {
+          // Get balance based on the token type
+          if (pendingTransaction.token === 'sol') {
+            const balance = await connection.getBalance(publicKey)
+            remainingBalance = balance / 1_000_000_000 // Convert lamports to SOL
+          } else if (pendingTransaction.token === 'msol') {
+            // Fetch mSOL token balance
+            const { PublicKey } = await import('@solana/web3.js')
+            const { getAssociatedTokenAddress } = await import('@solana/spl-token')
+            const mSOL_MINT = new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So')
+            try {
+              const msolAta = await getAssociatedTokenAddress(mSOL_MINT, publicKey)
+              const tokenBalance = await connection.getTokenAccountBalance(msolAta)
+              remainingBalance = parseFloat(tokenBalance.value.amount) / Math.pow(10, tokenBalance.value.decimals)
+            } catch {
+              remainingBalance = 0
+            }
+          } else if (pendingTransaction.token === 'bsol') {
+            // Fetch bSOL token balance
+            const { PublicKey } = await import('@solana/web3.js')
+            const { getAssociatedTokenAddress } = await import('@solana/spl-token')
+            const bSOL_MINT = new PublicKey('bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1')
+            try {
+              const bsolAta = await getAssociatedTokenAddress(bSOL_MINT, publicKey)
+              const tokenBalance = await connection.getTokenAccountBalance(bsolAta)
+              remainingBalance = parseFloat(tokenBalance.value.amount) / Math.pow(10, tokenBalance.value.decimals)
+            } catch {
+              remainingBalance = 0
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch balance:', err)
+        }
+      }
+      
       // Update transaction status to success (keep card visible in messages)
       setMessages((prev) => 
         prev.map(msg => 
@@ -630,7 +716,8 @@ const handleSuggestionClick = async (text: string) => {
                 transactionData: { 
                   ...pendingTransaction, 
                   status: 'success' as const,
-                  transactionSignature: txSignature
+                  transactionSignature: txSignature,
+                  remainingBalance
                 } 
               }
             : msg
@@ -652,12 +739,12 @@ const handleSuggestionClick = async (text: string) => {
     }
   }
 
-  const handleViewDetails = () => {
-    // Find the transaction in messages to get updated status
-    const txMessage = messages.find(msg => msg.transactionData?.id === pendingTransaction?.id)
-    const txData = txMessage?.transactionData
+  const handleViewDetails = (txData?: any) => {
+    // If txData is passed directly (from unstake success card), use it
+    // Otherwise find the transaction in messages (for approve flow)
+    const transactionData = txData || messages.find(msg => msg.transactionData?.id === pendingTransaction?.id)?.transactionData
     
-    if (txData?.status === 'failed') {
+    if (transactionData?.status === 'failed') {
       // Show failure message
       setMessages((prev) => [
         ...prev,
@@ -668,9 +755,9 @@ const handleSuggestionClick = async (text: string) => {
           timestamp: new Date(),
         },
       ])
-    } else if (txData?.transactionSignature) {
+    } else if (transactionData?.transactionSignature) {
       // Open transaction on Solana Explorer
-      window.open(`https://solscan.io/tx/${txData.transactionSignature}?cluster=devnet`, '_blank')
+      window.open(`https://solscan.io/tx/${transactionData.transactionSignature}?cluster=devnet`, '_blank')
     } else {
       // No signature available
       setMessages((prev) => [
@@ -737,6 +824,130 @@ const handleSuggestionClick = async (text: string) => {
     })
   }
 
+  const handleStakeAccountSelect = async (index: number) => {
+    console.log('🎯 handleStakeAccountSelect called, index:', index)
+    const selectedAccount = cachedStakeAccounts[index]
+    console.log('📋 Selected account:', selectedAccount)
+    if (!selectedAccount || !publicKey || !sendTransaction) return
+    
+    setIsTyping(true)
+    
+    try {
+      console.log('🚀 Executing deactivate transaction on account...')
+      
+      // Import required Solana modules
+      const { Connection, Transaction, StakeProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js')
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed')
+      
+      // Build deactivate transaction
+      const latestBlockhash = await connection.getLatestBlockhash()
+      const tx = new Transaction().add(
+        StakeProgram.deactivate({
+          stakePubkey: selectedAccount.stakePubkey,
+          authorizedPubkey: publicKey,
+        })
+      )
+      tx.feePayer = publicKey
+      tx.recentBlockhash = latestBlockhash.blockhash
+      
+      console.log('📝 Transaction built, requesting wallet signature...')
+      
+      // Send transaction (wallet will sign it)
+      const txid = await sendTransaction(tx, connection)
+      
+      console.log('✅ Transaction sent, confirming...', txid)
+      
+      await connection.confirmTransaction({
+        signature: txid,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      })
+      
+      console.log('✅ Transaction confirmed!')
+      
+      // Fetch updated balance after unstake
+      let remainingBalance: number | undefined
+      try {
+        const balance = await connection.getBalance(publicKey)
+        remainingBalance = balance / LAMPORTS_PER_SOL
+      } catch (err) {
+        console.error('Failed to fetch balance:', err)
+      }
+      
+      // Clear cached accounts
+      setCachedStakeAccounts([])
+      setUnstakeAction(null)
+      
+      // Replace the account selector message with success transaction card
+      setMessages((prev) => 
+        prev.map(msg => {
+          // Find the message with stakeAccountsData (the account selector)
+          if (msg.stakeAccountsData) {
+            // Replace it with a transaction success card
+            return {
+              ...msg,
+              stakeAccountsData: undefined,
+              transactionData: {
+                id: Date.now().toString(),
+                type: 'unstake' as const,
+                token: 'sol',
+                amount: selectedAccount.lamports / LAMPORTS_PER_SOL,
+                status: 'success' as const,
+                transactionSignature: txid,
+                remainingBalance
+              }
+            }
+          }
+          return msg
+        })
+      )
+      
+    } catch (error: any) {
+      console.error('Error during unstake:', error)
+      
+      // Check if user rejected
+      const isRejected = error.message?.includes("User rejected") || 
+                        error.message?.includes("Transaction was rejected") ||
+                        error.message?.includes("cancelled")
+      
+      // Replace account selector with error message
+      setMessages((prev) => 
+        prev.map(msg => {
+          if (msg.stakeAccountsData) {
+            return {
+              ...msg,
+              stakeAccountsData: undefined,
+              content: isRejected 
+                ? '❎ Unstake cancelled by user.' 
+                : `❌ Failed to unstake: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            }
+          }
+          return msg
+        })
+      )
+      
+      // Clear cached accounts on error too
+      setCachedStakeAccounts([])
+      setUnstakeAction(null)
+    } finally {
+      setIsTyping(false)
+    }
+  }
+
+  const handleStakeAccountCancel = () => {
+    setCachedStakeAccounts([])
+    setUnstakeAction(null)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        content: "❌ Unstake cancelled.",
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ])
+  }
+
 
 
   const messageVariants = {
@@ -756,7 +967,7 @@ const handleSuggestionClick = async (text: string) => {
       <ScrollArea className="flex-grow p-4 relative z-10 h-[280px] md:h-[470px] scroll-smooth">
         <div className="space-y-6">
           <AnimatePresence>
-            {messages.filter(msg => msg.content.trim() !== "" || msg.transactionData).map((msg) => (
+            {messages.filter(msg => msg.content.trim() !== "" || msg.transactionData || msg.stakeAccountsData).map((msg) => (
               <motion.div
                 key={msg.id}
                 className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
@@ -774,6 +985,16 @@ const handleSuggestionClick = async (text: string) => {
                       onDecline={handleDeclineTransaction}
                       onEdit={handleEditTransaction}
                       onViewDetails={handleViewDetails}
+                    />
+                  </div>
+                ) : msg.stakeAccountsData ? (
+                  // Render stake account selector
+                  <div className="w-full max-w-md">
+                    <StakeAccountSelector
+                      accounts={msg.stakeAccountsData.accounts}
+                      action={msg.stakeAccountsData.action}
+                      onSelect={handleStakeAccountSelect}
+                      onCancel={handleStakeAccountCancel}
                     />
                   </div>
                 ) : (
