@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ExternalLink
 } from "lucide-react"
+import { fetchPortfolioPrices, fetchStakingAPY, formatPrice, formatAPY } from "@/lib/coingecko-service"
 
 
 const STAKE_PROGRAM_ID = new PublicKey("Stake11111111111111111111111111111111111111")
@@ -46,6 +47,8 @@ export default function PortfolioPage() {
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ type: "success", title: "", message: "" })
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null)
+  const [prices, setPrices] = useState({ sol: 0, msol: 0, bsol: 0 })
+  const [apys, setApys] = useState({ sol: 0, msol: 0, bsol: 0 })
   const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
@@ -146,6 +149,27 @@ export default function PortfolioPage() {
     fetchLiquidStakingBalances()
   }, [publicKey])
 
+  // Fetch prices and APY from CoinGecko
+  useEffect(() => {
+    const fetchPriceData = async () => {
+      try {
+        const [priceData, apyData] = await Promise.all([
+          fetchPortfolioPrices(),
+          fetchStakingAPY(),
+        ])
+        setPrices(priceData)
+        setApys(apyData)
+      } catch (error) {
+        console.error("Error fetching price data:", error)
+      }
+    }
+
+    fetchPriceData()
+    // Refresh prices every 60 seconds
+    const interval = setInterval(fetchPriceData, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoaded(true)
@@ -155,43 +179,75 @@ export default function PortfolioPage() {
 
   const handleGoBack = () => router.back()
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true)
-    setTimeout(() => {
-      setIsRefreshing(false)
+    try {
+      // Fetch fresh data
+      const [priceData, apyData] = await Promise.all([
+        fetchPortfolioPrices(),
+        fetchStakingAPY(),
+      ])
+      setPrices(priceData)
+      setApys(apyData)
+      
       setToastMessage({
         type: "success",
         title: "Data Refreshed",
-        message: "Your portfolio has been updated.",
+        message: "Your portfolio has been updated with latest prices.",
       })
       setShowToast(true)
-    }, 1500)
+    } catch (error) {
+      console.error("Error refreshing data:", error)
+      setToastMessage({
+        type: "error",
+        title: "Refresh Failed",
+        message: "Unable to fetch latest prices. Please try again.",
+      })
+      setShowToast(true)
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const totalStaked = stakeAccounts.reduce((sum, s) => sum + s.sol, 0)
   const totalBalance = (solBalance ?? 0) + bsolBalance + msolBalance
+  
+  // Calculate total portfolio value in USD
+  const totalValueUSD = 
+    (solBalance ?? 0) * prices.sol +
+    bsolBalance * prices.bsol +
+    msolBalance * prices.msol
 
 const portfolioAssets = [
   {
     id: "sol",
     name: "SOL",
     value: solBalance ?? 0,
+    price: prices.sol,
+    apy: apys.sol,
     color: "#8b5cf6",
     percentage: parseFloat((((solBalance ?? 0) / totalBalance) * 100).toFixed(2)),
+    valueUSD: (solBalance ?? 0) * prices.sol,
   },
   {
     id: "bsol",
     name: "bSOL",
     value: bsolBalance,
+    price: prices.bsol,
+    apy: apys.bsol,
     color: "#38bdf8",
     percentage: parseFloat(((bsolBalance / totalBalance) * 100).toFixed(2)),
+    valueUSD: bsolBalance * prices.bsol,
   },
   {
     id: "msol",
     name: "mSOL",
     value: msolBalance,
+    price: prices.msol,
+    apy: apys.msol,
     color: "#22c55e",
     percentage: parseFloat(((msolBalance / totalBalance) * 100).toFixed(2)),
+    valueUSD: msolBalance * prices.msol,
   },
 ]
 
@@ -201,7 +257,7 @@ const portfolioAssets = [
         <div className="container mx-auto px-4 py-8">
           <motion.div className="flex justify-between items-center mb-8" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="icon" className="rounded-full border-gray-700 hover:bg-gray-800" onClick={handleGoBack}>
+              <Button variant="outline" size="icon" className="rounded-full border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50 transition-all duration-300" onClick={handleGoBack}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 tracking-tight">
@@ -209,12 +265,12 @@ const portfolioAssets = [
               </h1>
             </div>
             <AnimatedGradientButton
-              gradientFrom="#4f46e5"
-              gradientTo="#8b5cf6"
-              hoverGradientFrom="#4338ca"
-              hoverGradientTo="#7c3aed"
+              gradientFrom="#8b5cf6"
+              gradientTo="#6366f1"
+              hoverGradientFrom="#7c3aed"
+              hoverGradientTo="#4f46e5"
               variant="outline"
-              className="border-gray-700 text-white px-3 py-2 text-sm"
+              className="border-purple-500/30 text-white px-3 py-2 text-sm hover:border-purple-500/50"
               onClick={handleRefresh}
               disabled={isRefreshing}
             >
@@ -237,7 +293,7 @@ const portfolioAssets = [
                       <AnimatedNumber value={totalBalance} /> SOL
                     </h3>
                     <p className="text-gray-400 text-sm">
-                      $<AnimatedNumber value={totalBalance * 100} formatValue={(val) => val.toFixed(2)} />
+                      $<AnimatedNumber value={totalValueUSD} formatValue={(val) => val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
                     </p>
                   </div>
                   <div className="flex items-center justify-end">
@@ -292,11 +348,11 @@ const portfolioAssets = [
                 {/* Asset Allocation Legend */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-w-2xl mx-auto">
                   {portfolioAssets.map((asset) => (
-                    <div key={asset.id} className="flex items-center gap-2 bg-gray-700/30 rounded-lg p-3">
+                    <div key={asset.id} className="flex items-center gap-2 bg-secondary/50 rounded-lg p-3 border border-border/50">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: asset.color }}></div>
                       <div>
                         <div className="text-sm font-medium">{asset.name}</div>
-                        <div className="text-xs text-gray-400">{asset.percentage}%</div>
+                        <div className="text-xs text-muted-foreground">{asset.percentage}%</div>
                       </div>
                     </div>
                   ))}
@@ -304,10 +360,10 @@ const portfolioAssets = [
               </CardContent>
             </motion.div>
 
-            <motion.div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div className="bg-card/50 border border-border rounded-xl p-6 backdrop-blur-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold">Staking Overview</CardTitle>
-                <CardDescription className="text-gray-400">Native stake accounts</CardDescription>
+                <CardDescription className="text-muted-foreground">Native stake accounts</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold mb-2">
@@ -315,12 +371,12 @@ const portfolioAssets = [
                 </p>
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
                   {stakeAccounts.map((stake, i) => (
-                    <div key={i} className="flex justify-between items-center bg-gray-700/40 rounded-lg px-3 py-2">
+                    <div key={i} className="flex justify-between items-center bg-secondary/30 rounded-lg px-3 py-2 border border-border/30 hover:bg-secondary/50 transition-colors duration-200">
                       <div>
                         <p className="text-sm font-medium">
                           {stake.voteAccountAddress.slice(0, 4)}...{stake.voteAccountAddress.slice(-4)}
                         </p>
-                        <p className="text-xs text-gray-400">{stake.status}</p>
+                        <p className="text-xs text-muted-foreground">{stake.status}</p>
                       </div>
                       <p className="text-sm font-semibold">{stake.sol.toFixed(2)} SOL</p>
                     </div>
@@ -329,24 +385,24 @@ const portfolioAssets = [
               </CardContent>
             </motion.div>
           </motion.div>
-          <AnimatedCard className="bg-gray-800/50 border-gray-700 mb-8" hoverEffect="none" delay={2}>
+          <AnimatedCard className="bg-card/50 border-border backdrop-blur-sm mb-8" hoverEffect="none" delay={2}>
             <CardHeader className="pb-2">
               <CardTitle className="text-xl font-bold">Your Assets</CardTitle>
-              <CardDescription className="text-gray-400">Detailed breakdown of your holdings</CardDescription>
+              <CardDescription className="text-muted-foreground">Detailed breakdown of your holdings</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {portfolioAssets.map((asset, index) => (
                   <motion.div
                     key={asset.id}
-                    className="border border-gray-700 rounded-lg overflow-hidden"
+                    className="border border-border rounded-lg overflow-hidden backdrop-blur-sm"
                     variants={itemVariants}
                     initial="hidden"
                     animate="visible"
                     transition={{ delay: 0.2 + index * 0.1 }}
                   >
                     <div
-                      className="p-4 bg-gray-700/30 flex items-center justify-between cursor-pointer hover:bg-gray-700/50 transition-colors duration-300"
+                      className="p-4 bg-secondary/30 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-all duration-300 hover:border-purple-500/30"
                       onClick={() => setExpandedAsset(asset.id === expandedAsset ? null : asset.id)}
                     >
                       <div className="flex items-center gap-3">
@@ -354,7 +410,7 @@ const portfolioAssets = [
                         <div>
                           <h4 className="font-medium">{asset.name}</h4>
                           <p className="text-sm text-gray-400">
-                            <AnimatedNumber value={asset.value * 100} formatValue={(val) => `$${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                            <AnimatedNumber value={asset.valueUSD} formatValue={(val) => `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                           </p>
                         </div>
                       </div>
@@ -379,28 +435,30 @@ const portfolioAssets = [
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="p-4 border-t border-gray-700 bg-gray-800/30"
+                        className="p-4 border-t border-border bg-card/30"
                       >
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div className="bg-gray-700/30 p-3 rounded-lg">
-                            <p className="text-sm text-gray-400">Current Price</p>
-                            <p className="font-medium">$100</p>
+                          <div className="bg-secondary/40 p-3 rounded-lg border border-border/50">
+                            <p className="text-sm text-muted-foreground">Current Price</p>
+                            <p className="font-medium">
+                              {asset.price > 0 ? `$${formatPrice(asset.price)}` : 'Loading...'}
+                            </p>
                           </div>
-                          <div className="bg-gray-700/30 p-3 rounded-lg">
-                            <p className="text-sm text-gray-400">Portfolio %</p>
+                          <div className="bg-secondary/40 p-3 rounded-lg border border-border/50">
+                            <p className="text-sm text-muted-foreground">Portfolio %</p>
                             <p className="font-medium">{asset.percentage}%</p>
                           </div>
-                          <div className="bg-gray-700/30 p-3 rounded-lg">
-                            <p className="text-sm text-gray-400">APY</p>
+                          <div className="bg-secondary/40 p-3 rounded-lg border border-border/50">
+                            <p className="text-sm text-muted-foreground">APY</p>
                             <p className="font-medium text-green-400">
-                              {asset.id === 'sol' ? '+5.8%' : asset.id === 'msol' ? '+6.2%' : asset.id === 'bsol' ? '+7.0%' : '—'}
+                              {asset.apy > 0 ? formatAPY(asset.apy) : 'Loading...'}
                             </p>
                           </div>
                         </div>
 
                         <div className="mb-2">
-                          <p className="text-sm text-gray-400 mb-2">Staking Details</p>
-                          <div className="bg-gray-700/30 p-3 rounded-lg">
+                          <p className="text-sm text-muted-foreground mb-2">Staking Details</p>
+                          <div className="bg-secondary/40 p-3 rounded-lg border border-border/50">
                             <div className="flex justify-between items-center">
                               <div>
                                 <p className="text-sm">Staked Amount</p>

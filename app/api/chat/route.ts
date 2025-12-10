@@ -1,8 +1,10 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { chatWithSolanaBot } from "@/lib/chatbot"
 import type { Message } from "@/lib/chatbot"
 
-export const runtime = 'edge'
+// Use Node runtime to avoid ArrayBuffer detachment issues
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -18,34 +20,18 @@ export async function POST(req: NextRequest) {
   try {
     const { reply } = await chatWithSolanaBot(prompt, messages as Message[])
     
-    // Split reply by lines for line-by-line streaming
-    const lines = reply.split('\n')
-    
-    const encoder = new TextEncoder()
-    const stream = new ReadableStream({
-      async start(controller) {
-        for (const line of lines) {
-          // Send each line followed by newline
-          controller.enqueue(encoder.encode(line + '\n'))
-          // Small delay between lines for smooth display
-          await new Promise(resolve => setTimeout(resolve, 50))
-        }
-        controller.close()
-      }
-    })
-
-    return new Response(stream, {
+    // Return simple JSON response instead of streaming to avoid ArrayBuffer issues
+    return NextResponse.json({ reply }, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
       },
     })
   } catch (error: any) {
     console.error("Error in chat API:", error)
-    return new Response(JSON.stringify({ error: "Internal Server Error", details: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return NextResponse.json(
+      { error: "Internal Server Error", details: error.message },
+      { status: 500 }
+    )
   }
 }

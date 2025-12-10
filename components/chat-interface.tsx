@@ -26,12 +26,14 @@ import { handleSendSolCommand } from "@/stake-unstake/SendSOL/send-sol"
 import { Transaction } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import { getNLUService, INTENTS } from "@/lib/nlu/nlu-service"
+import { TransactionConfirmation, PendingTransaction } from "@/components/transaction-confirmation"
 
 type Message = {
   id: string
   content: string
   sender: "user" | "bot"
   timestamp: Date
+  transactionData?: PendingTransaction
 }
 
 type SuggestionBubble = {
@@ -42,14 +44,7 @@ type SuggestionBubble = {
 
 export function ChatInterface() {
   const { publicKey, signTransaction, sendTransaction } = useWallet()
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      content: "Hey! 👋 I'm here to help with anything Solana DeFi related. What can I do for you today? 📊 ⚡",
-      sender: "bot",
-      timestamp: new Date(),
-    }
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -59,6 +54,7 @@ export function ChatInterface() {
   const { connection } = useConnection()
   const nluService = getNLUService()
   const [pendingIntent, setPendingIntent] = useState<{ intent: string; entities: any } | null>(null)
+  const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction & { nluResult: any } | null>(null)
 
   // Initialize NLU service on mount
   useEffect(() => {
@@ -103,6 +99,15 @@ export function ChatInterface() {
 
     // ========== AI-POWERED NLU PROCESSING ==========
     try {
+      // Skip NLU for casual conversation (greetings, short messages without commands)
+      const casualPatterns = /^(hi|hey|hello|sup|yo|how are you|what's up|whats up|hows it going)$/i
+      const isCasualInput = casualPatterns.test(input.trim()) || (input.length < 8 && !input.match(/\d/))
+      
+      if (isCasualInput && !pendingIntent) {
+        console.log('💬 Casual input detected, skipping NLU')
+        throw new Error('casual_input') // Jump to chatbot
+      }
+
       // Process input with NLU
       let nluResult = await nluService.processInput(input)
       
@@ -128,6 +133,12 @@ export function ChatInterface() {
         valid: nluResult.valid,
         pendingIntent: pendingIntent ? 'yes' : 'no'
       })
+
+      // If confidence is too low (< 50%), skip NLU and let AI chatbot handle it
+      if (nluResult.confidence < 0.5 && !pendingIntent) {
+        console.log('⚠️ Low confidence, passing to AI chatbot')
+        throw new Error('low_confidence') // Jump to chatbot
+      }
 
       // Check if wallet is needed for this intent
       const walletRequiredIntents: string[] = [
@@ -184,49 +195,128 @@ export function ChatInterface() {
 
       switch (nluResult.intent) {
         case INTENTS.STAKE_NATIVE:
-          reply = await handleStakingCommand(
-            `stake ${nluResult.entities.amount} sol`,
-            { publicKey, signTransaction, sendTransaction }
-          )
-          break
+          // Add transaction confirmation as a message
+          const stakeTransaction: PendingTransaction = {
+            id: Date.now().toString(),
+            type: 'stake',
+            token: 'sol',
+            amount: nluResult.entities.amount,
+            estimatedFee: 0.00001,
+            nluResult
+          }
+          setPendingTransaction(stakeTransaction)
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              content: '',
+              sender: 'bot',
+              timestamp: new Date(),
+              transactionData: stakeTransaction
+            }
+          ])
+          setIsTyping(false)
+          return
 
         case INTENTS.STAKE_MSOL:
-          reply = await handleStakeToMSOLCommand(
-            `stake ${nluResult.entities.amount} to msol`,
-            { publicKey, signTransaction, sendTransaction, connection }
-          )
-          break
+          const stakeMsolTransaction: PendingTransaction = {
+            id: Date.now().toString(),
+            type: 'stake',
+            token: 'msol',
+            amount: nluResult.entities.amount,
+            estimatedFee: 0.00001,
+            nluResult
+          }
+          setPendingTransaction(stakeMsolTransaction)
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              content: '',
+              sender: 'bot',
+              timestamp: new Date(),
+              transactionData: stakeMsolTransaction
+            }
+          ])
+          setIsTyping(false)
+          return
 
         case INTENTS.STAKE_BSOL:
           if (!signTransaction || !publicKey) {
             reply = "❌ Transaction signing not available"
             break
           }
-          reply = await handleStakeToBSOLCommand(
-            `stake ${nluResult.entities.amount} to bsol`,
+          const stakeBsolTransaction: PendingTransaction = {
+            id: Date.now().toString(),
+            type: 'stake',
+            token: 'bsol',
+            amount: nluResult.entities.amount,
+            estimatedFee: 0.00001,
+            nluResult
+          }
+          setPendingTransaction(stakeBsolTransaction)
+          setMessages((prev) => [
+            ...prev,
             {
-              publicKey,
-              signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
-              connection,
+              id: Date.now().toString(),
+              content: '',
+              sender: 'bot',
+              timestamp: new Date(),
+              transactionData: stakeBsolTransaction
             }
-          )
-          break
+          ])
+          setIsTyping(false)
+          return
 
         case INTENTS.UNSTAKE_NATIVE:
           if (publicKey) {
-            reply = await handleUnstakingCommand(
-              `unstake ${nluResult.entities.amount} sol`,
-              { publicKey, signTransaction, sendTransaction }
-            )
+            const unstakeTransaction: PendingTransaction = {
+              id: Date.now().toString(),
+              type: 'unstake',
+              token: 'sol',
+              amount: nluResult.entities.amount,
+              estimatedFee: 0.00001,
+              nluResult
+            }
+            setPendingTransaction(unstakeTransaction)
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                content: '',
+                sender: 'bot',
+                timestamp: new Date(),
+                transactionData: unstakeTransaction
+              }
+            ])
+            setIsTyping(false)
+            return
           }
           break
 
         case INTENTS.UNSTAKE_MSOL:
           if (publicKey) {
-            reply = await handleUnstakeMSOLCommand(
-              `unstake ${nluResult.entities.amount} msol`,
-              { publicKey, signTransaction, sendTransaction, connection }
-            )
+            const unstakeMsolTransaction: PendingTransaction = {
+              id: Date.now().toString(),
+              type: 'unstake',
+              token: 'msol',
+              amount: nluResult.entities.amount,
+              estimatedFee: 0.00001,
+              nluResult
+            }
+            setPendingTransaction(unstakeMsolTransaction)
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                content: '',
+                sender: 'bot',
+                timestamp: new Date(),
+                transactionData: unstakeMsolTransaction
+              }
+            ])
+            setIsTyping(false)
+            return
           }
           break
 
@@ -235,22 +325,51 @@ export function ChatInterface() {
             reply = "❌ Transaction signing not available"
             break
           }
-          reply = await handleStakeToBSOLCommand(
-            `unstake ${nluResult.entities.amount} bsol`,
+          const unstakeBsolTransaction: PendingTransaction = {
+            id: Date.now().toString(),
+            type: 'unstake',
+            token: 'bsol',
+            amount: nluResult.entities.amount,
+            estimatedFee: 0.00001,
+            nluResult
+          }
+          setPendingTransaction(unstakeBsolTransaction)
+          setMessages((prev) => [
+            ...prev,
             {
-              publicKey,
-              signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
-              connection,
+              id: Date.now().toString(),
+              content: '',
+              sender: 'bot',
+              timestamp: new Date(),
+              transactionData: unstakeBsolTransaction
             }
-          )
-          break
+          ])
+          setIsTyping(false)
+          return
 
         case INTENTS.SEND:
-          reply = await handleSendSolCommand(
-            `send ${nluResult.entities.amount} sol to ${nluResult.entities.address}`,
-            { publicKey, sendTransaction, connection }
-          )
-          break
+          const sendTransaction: PendingTransaction = {
+            id: Date.now().toString(),
+            type: 'send',
+            token: 'sol',
+            amount: nluResult.entities.amount,
+            recipient: nluResult.entities.address,
+            estimatedFee: 0.00005,
+            nluResult
+          }
+          setPendingTransaction(sendTransaction)
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              content: '',
+              sender: 'bot',
+              timestamp: new Date(),
+              transactionData: sendTransaction
+            }
+          ])
+          setIsTyping(false)
+          return
 
         case INTENTS.BALANCE:
           if (publicKey) {
@@ -280,25 +399,16 @@ export function ChatInterface() {
         setIsTyping(false)
         return
       }
-    } catch (nluError) {
-      console.error('NLU processing error:', nluError)
-      // Fall through to chatbot on NLU error
+    } catch (nluError: any) {
+      // Don't log casual inputs or low confidence as errors
+      if (nluError.message !== 'casual_input' && nluError.message !== 'low_confidence') {
+        console.error('NLU processing error:', nluError)
+      }
+      // Fall through to chatbot on NLU error, casual input, or low confidence
     }
     
     try {
-      // Create bot message placeholder with a unique ID
-      const botMessageId = `bot-${Date.now()}`
-      const botPlaceholder: Message = {
-        id: botMessageId,
-        content: "",
-        sender: "bot",
-        timestamp: new Date(),
-      }
-      
-      // Add bot placeholder to existing messages
-      setMessages((prev) => [...prev, botPlaceholder])
-
-      // Use fetch for streaming instead of axios
+      // Fetch response from API
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -317,61 +427,28 @@ export function ChatInterface() {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ""
-      let lastUpdateTime = 0
-      isStreamingRef.current = true
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value)
-          fullContent += chunk
-
-          // Throttle updates to every 50ms for smoother rendering
-          const now = Date.now()
-          if (now - lastUpdateTime >= 50 || done) {
-            lastUpdateTime = now
-            
-            // Update message with accumulated content (line by line)
-            setMessages((prev) => {
-              const copy = [...prev]
-              const msgIndex = copy.findIndex((m) => m.id === botMessageId)
-              if (msgIndex !== -1) {
-                copy[msgIndex] = {
-                  ...copy[msgIndex],
-                  content: fullContent,
-                }
-              }
-              return copy
-            })
-          }
-        }
-        
-        // Final update to ensure all content is shown
-        setMessages((prev) => {
-          const copy = [...prev]
-          const msgIndex = copy.findIndex((m) => m.id === botMessageId)
-          if (msgIndex !== -1) {
-            copy[msgIndex] = {
-              ...copy[msgIndex],
-              content: fullContent,
-            }
-          }
-          return copy
-        })
-        
-        // Mark streaming as complete and scroll to bottom
-        isStreamingRef.current = false
-        setTimeout(() => {
-          scrollToBottom()
-        }, 100)
+      // Parse JSON response
+      const data = await response.json()
+      
+      if (!data.reply) {
+        throw new Error("Empty response from server")
       }
 
+      // Add bot message with the reply
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: data.reply,
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
+
       setIsTyping(false)
+      setTimeout(() => {
+        scrollToBottom()
+      }, 100)
     } catch (err: any) {
       console.error("Chat error:", err)
       
@@ -453,6 +530,213 @@ const handleSuggestionClick = async (text: string) => {
   inputRef.current?.focus()
 }
 
+  // Handle transaction approval
+  const handleApproveTransaction = async () => {
+    if (!pendingTransaction) return
+    
+    const { nluResult } = pendingTransaction
+    setIsTyping(true)
+    
+    try {
+      let reply: string | null = null
+      
+      // Execute the actual transaction based on stored intent
+      switch (nluResult.intent) {
+        case INTENTS.STAKE_NATIVE:
+          reply = await handleStakingCommand(
+            `stake ${nluResult.entities.amount} sol`,
+            { publicKey, signTransaction, sendTransaction }
+          )
+          break
+          
+        case INTENTS.STAKE_MSOL:
+          reply = await handleStakeToMSOLCommand(
+            `stake ${nluResult.entities.amount} to msol`,
+            { publicKey, signTransaction, sendTransaction, connection }
+          )
+          break
+          
+        case INTENTS.STAKE_BSOL:
+          if (!signTransaction || !publicKey) {
+            reply = "❌ Transaction signing not available"
+            break
+          }
+          reply = await handleStakeToBSOLCommand(
+            `stake ${nluResult.entities.amount} to bsol`,
+            {
+              publicKey,
+              signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
+              connection,
+            }
+          )
+          break
+          
+        case INTENTS.UNSTAKE_NATIVE:
+          if (publicKey) {
+            reply = await handleUnstakingCommand(
+              `unstake ${nluResult.entities.amount} sol`,
+              { publicKey, signTransaction, sendTransaction }
+            )
+          }
+          break
+          
+        case INTENTS.UNSTAKE_MSOL:
+          if (publicKey) {
+            reply = await handleUnstakeMSOLCommand(
+              `unstake ${nluResult.entities.amount} msol`,
+              { publicKey, signTransaction, sendTransaction, connection }
+            )
+          }
+          break
+          
+        case INTENTS.UNSTAKE_BSOL:
+          if (!signTransaction || !publicKey) {
+            reply = "❌ Transaction signing not available"
+            break
+          }
+          reply = await handleStakeToBSOLCommand(
+            `unstake ${nluResult.entities.amount} bsol`,
+            {
+              publicKey,
+              signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
+              connection,
+            }
+          )
+          break
+          
+        case INTENTS.SEND:
+          reply = await handleSendSolCommand(
+            `send ${nluResult.entities.amount} sol to ${nluResult.entities.address}`,
+            { publicKey, sendTransaction, connection }
+          )
+          break
+      }
+      
+      // Extract transaction signature from reply (format: "...https://solscan.io/tx/{txid}...")
+      let txSignature: string | undefined
+      if (reply) {
+        const txMatch = reply.match(/tx\/([A-Za-z0-9]+)/)
+        if (txMatch) {
+          txSignature = txMatch[1]
+        }
+      }
+      
+      // Update transaction status to success (keep card visible in messages)
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.transactionData?.id === pendingTransaction.id
+            ? { 
+                ...msg, 
+                transactionData: { 
+                  ...pendingTransaction, 
+                  status: 'success' as const,
+                  transactionSignature: txSignature
+                } 
+              }
+            : msg
+        )
+      )
+    } catch (error: any) {
+      console.error('Transaction execution error:', error)
+      
+      // Update transaction status to failed (keep card visible in messages)
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.transactionData?.id === pendingTransaction.id
+            ? { ...msg, transactionData: { ...pendingTransaction, status: 'failed' as const } }
+            : msg
+        )
+      )
+    } finally {
+      setIsTyping(false)
+    }
+  }
+
+  const handleViewDetails = () => {
+    // Find the transaction in messages to get updated status
+    const txMessage = messages.find(msg => msg.transactionData?.id === pendingTransaction?.id)
+    const txData = txMessage?.transactionData
+    
+    if (txData?.status === 'failed') {
+      // Show failure message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: "❌ Transaction failed",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
+    } else if (txData?.transactionSignature) {
+      // Open transaction on Solana Explorer
+      window.open(`https://solscan.io/tx/${txData.transactionSignature}?cluster=devnet`, '_blank')
+    } else {
+      // No signature available
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: "⚠️ No transaction signature available",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
+    }
+  }
+
+  const handleDeclineTransaction = () => {
+    setPendingTransaction(null)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        content: "❌ Transaction cancelled.",
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ])
+  }
+
+  const handleEditTransaction = (newAmount: number) => {
+    if (!pendingTransaction) return
+    
+    // Update the transaction amount in messages
+    setMessages((prev) => 
+      prev.map(msg => 
+        msg.transactionData?.id === pendingTransaction.id
+          ? { 
+              ...msg, 
+              transactionData: { 
+                ...msg.transactionData, 
+                amount: newAmount,
+                nluResult: {
+                  ...msg.transactionData.nluResult,
+                  entities: {
+                    ...msg.transactionData.nluResult?.entities,
+                    amount: newAmount
+                  }
+                }
+              } 
+            }
+          : msg
+      )
+    )
+    
+    // Update pending transaction state
+    setPendingTransaction({
+      ...pendingTransaction,
+      amount: newAmount,
+      nluResult: {
+        ...pendingTransaction.nluResult,
+        entities: {
+          ...pendingTransaction.nluResult?.entities,
+          amount: newAmount
+        }
+      }
+    })
+  }
+
 
 
   const messageVariants = {
@@ -472,7 +756,7 @@ const handleSuggestionClick = async (text: string) => {
       <ScrollArea className="flex-grow p-4 relative z-10 h-[280px] md:h-[470px] scroll-smooth">
         <div className="space-y-6">
           <AnimatePresence>
-            {messages.filter(msg => msg.content.trim() !== "").map((msg) => (
+            {messages.filter(msg => msg.content.trim() !== "" || msg.transactionData).map((msg) => (
               <motion.div
                 key={msg.id}
                 className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
@@ -481,6 +765,19 @@ const handleSuggestionClick = async (text: string) => {
                 animate="visible"
                 exit="exit"
               >
+                {msg.transactionData ? (
+                  // Render transaction confirmation card
+                  <div className="w-full max-w-md">
+                    <TransactionConfirmation
+                      transaction={msg.transactionData}
+                      onApprove={handleApproveTransaction}
+                      onDecline={handleDeclineTransaction}
+                      onEdit={handleEditTransaction}
+                      onViewDetails={handleViewDetails}
+                    />
+                  </div>
+                ) : (
+                  // Render regular message
                 <div
                   className={`flex items-start gap-3 max-w-[85%] ${
                     msg.sender === "user" ? "flex-row-reverse" : ""
@@ -531,6 +828,7 @@ const handleSuggestionClick = async (text: string) => {
                     </div>
                   </div>
                 </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>

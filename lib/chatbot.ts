@@ -1,8 +1,8 @@
 // lib/solanaChatbot.ts
 import axios from "axios";
+import { fetchTokenPrice, fetchTokenMarketData, TOKEN_IDS } from "@/lib/coingecko-service";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const COINGECKO_API_URL = "https://api.coingecko.com/api/v3";
 
 export interface Message {
   role: "system" | "user" | "assistant";
@@ -46,41 +46,41 @@ Be precise, current, and efficient in your responses.`,
 };
 
 // Detect intent based on input
-function detectIntent(userInput: string): { intent: string; tokenId?: string } | null {
+function detectIntent(userInput: string): { intent: string; tokenId?: string; tokenName?: string } | null {
   const lower = userInput.toLowerCase();
 
-  if (lower.includes("solana") && lower.includes("price")) return { intent: "fetch_price", tokenId: "solana" };
-  if (lower.includes("msol") && lower.includes("price")) return { intent: "fetch_price", tokenId: "msol" };
-  if (lower.includes("jitosol") && lower.includes("price")) return { intent: "fetch_price", tokenId: "jito-staked-sol" };
+  // Price queries
+  if (lower.includes("sol") && lower.includes("price") && !lower.includes("msol") && !lower.includes("bsol")) {
+    return { intent: "fetch_price", tokenId: TOKEN_IDS.SOL, tokenName: "SOL" };
+  }
+  if (lower.includes("msol") && lower.includes("price")) {
+    return { intent: "fetch_price", tokenId: TOKEN_IDS.MSOL, tokenName: "mSOL" };
+  }
+  if (lower.includes("bsol") && lower.includes("price")) {
+    return { intent: "fetch_price", tokenId: TOKEN_IDS.BSOL, tokenName: "bSOL" };
+  }
+  if (lower.includes("jitosol") && lower.includes("price")) {
+    return { intent: "fetch_price", tokenId: TOKEN_IDS.JITOSOL, tokenName: "jitoSOL" };
+  }
 
-  if (lower.includes("market data") && lower.includes("solana")) return { intent: "fetch_market", tokenId: "solana" };
-  if (lower.includes("market data") && lower.includes("msol")) return { intent: "fetch_market", tokenId: "msol" };
-  if (lower.includes("market data") && lower.includes("jitosol")) return { intent: "fetch_market", tokenId: "jito-staked-sol" };
+  // Market data queries
+  if (lower.includes("market data") && lower.includes("sol") && !lower.includes("msol") && !lower.includes("bsol")) {
+    return { intent: "fetch_market", tokenId: TOKEN_IDS.SOL, tokenName: "SOL" };
+  }
+  if (lower.includes("market data") && lower.includes("msol")) {
+    return { intent: "fetch_market", tokenId: TOKEN_IDS.MSOL, tokenName: "mSOL" };
+  }
+  if (lower.includes("market data") && lower.includes("bsol")) {
+    return { intent: "fetch_market", tokenId: TOKEN_IDS.BSOL, tokenName: "bSOL" };
+  }
+  if (lower.includes("market data") && lower.includes("jitosol")) {
+    return { intent: "fetch_market", tokenId: TOKEN_IDS.JITOSOL, tokenName: "jitoSOL" };
+  }
 
   return null;
 }
 
-// Fetch Price
-async function fetchTokenPrice(id: string): Promise<number | null> {
-  try {
-    const res = await axios.get(`${COINGECKO_API_URL}/simple/price`, {
-      params: { ids: id, vs_currencies: "usd" },
-    });
-    return res.data[id]?.usd || null;
-  } catch {
-    return null;
-  }
-}
-
-// Fetch Market Data
-async function fetchMarketData(id: string): Promise<any> {
-  try {
-    const res = await axios.get(`${COINGECKO_API_URL}/coins/${id}`);
-    return res.data;
-  } catch {
-    return null;
-  }
-}
+// Note: fetchTokenPrice and fetchTokenMarketData are now imported from coingecko-service.ts
 
 // Chatbot Handler
 export async function chatWithSolanaBot(
@@ -91,20 +91,33 @@ export async function chatWithSolanaBot(
   const intentInfo = detectIntent(userInput);
 
   if (intentInfo) {
-    const tokenId = intentInfo.tokenId!;
+    const { tokenId, tokenName, intent } = intentInfo;
 
-    if (intentInfo.intent === "fetch_price") {
-      const price = await fetchTokenPrice(tokenId);
-      const reply = price !== null ? `The current price of ${tokenId.toUpperCase()} is $${price}.` : "Unable to fetch price.";
+    if (intent === "fetch_price") {
+      const price = await fetchTokenPrice(tokenId!);
+      const reply = price !== null 
+        ? `💰 The current price of **${tokenName}** is **$${price.toFixed(price >= 1 ? 2 : 4)}** USD.` 
+        : `❌ Unable to fetch the price for ${tokenName}. Please try again later.`;
       conversation.push({ role: "assistant", content: reply });
       return { reply, updatedMessages: conversation };
     }
 
-    if (intentInfo.intent === "fetch_market") {
-      const marketData = await fetchMarketData(tokenId);
-      const reply = marketData ? `${tokenId.toUpperCase()} has a market cap of $${marketData.market_data.market_cap.usd.toLocaleString()} and a circulating supply of ${marketData.market_data.circulating_supply.toLocaleString()}.` : "Unable to fetch market data.";
-      conversation.push({ role: "assistant", content: reply });
-      return { reply, updatedMessages: conversation };
+    if (intent === "fetch_market") {
+      const marketData = await fetchTokenMarketData(tokenId!);
+      if (marketData) {
+        const reply = `## 📊 ${tokenName} Market Data\n\n` +
+          `- **Current Price:** $${marketData.current_price.toFixed(2)}\n` +
+          `- **Market Cap:** $${marketData.market_cap.toLocaleString()}\n` +
+          `- **24h Volume:** $${marketData.total_volume.toLocaleString()}\n` +
+          `- **24h Change:** ${marketData.price_change_percentage_24h >= 0 ? '+' : ''}${marketData.price_change_percentage_24h.toFixed(2)}%\n` +
+          `- **Circulating Supply:** ${marketData.circulating_supply.toLocaleString()} ${marketData.symbol}`;
+        conversation.push({ role: "assistant", content: reply });
+        return { reply, updatedMessages: conversation };
+      } else {
+        const reply = `❌ Unable to fetch market data for ${tokenName}. Please try again later.`;
+        conversation.push({ role: "assistant", content: reply });
+        return { reply, updatedMessages: conversation };
+      }
     }
   }
 
@@ -121,21 +134,22 @@ export async function chatWithSolanaBot(
   }
 
   // Retry logic with exponential backoff
-  const maxRetries = 3;
+  const maxRetries = 2; // Reduced retries to avoid long waits
   let lastError: any = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // Wait before retry (exponential backoff: 1s, 2s, 4s)
+      // Wait before retry (exponential backoff: 2s, 5s)
       if (attempt > 0) {
-        const waitTime = Math.pow(2, attempt - 1) * 1000;
+        const waitTime = attempt === 1 ? 2000 : 5000;
+        console.log(`⏳ Rate limited, waiting ${waitTime/1000}s before retry ${attempt}...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
 
       const response = await axios.post(
         OPENROUTER_URL,
         {
-          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          model: "qwen/qwen3-235b-a22b:free",
           messages: [systemMessage, ...conversation],
           temperature: 0.7,
         },
@@ -146,26 +160,42 @@ export async function chatWithSolanaBot(
             "HTTP-Referer": "https://simplYield.vercel.app",
             "X-Title": "SimplYield Assistant",
           },
-          timeout: 20000,
+          timeout: 30000,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
         }
       );
 
-      const botReply = response.data.choices[0].message.content;
+      // Validate response structure
+      if (!response.data || !response.data.choices || !response.data.choices[0]) {
+        console.error("Invalid API response structure:", response.data);
+        throw new Error("Invalid response from AI service");
+      }
+
+      const botReply = response.data.choices[0].message?.content || "";
+      
+      if (!botReply) {
+        console.error("Empty reply from API:", response.data);
+        throw new Error("Empty response from AI service");
+      }
+
       conversation.push({ role: "assistant", content: botReply });
 
       return { reply: botReply, updatedMessages: conversation };
     } catch (error: any) {
       lastError = error;
       
-      // If not a rate limit error, don't retry
-      if (error.response?.status !== 429) {
+      // If not a rate limit or timeout error, don't retry
+      const isRetryable = error.response?.status === 429 || 
+                          error.response?.status === 503 ||
+                          error.code === 'ECONNABORTED';
+      
+      if (!isRetryable || attempt === maxRetries - 1) {
+        console.log(`❌ Non-retryable error or max retries reached`);
         break;
       }
       
-      // If this was the last attempt, break
-      if (attempt === maxRetries - 1) {
-        break;
-      }
+      console.log(`⚠️ Retryable error (${error.response?.status || error.code}), will retry...`);
     }
   }
 
@@ -183,24 +213,34 @@ export async function chatWithSolanaBot(
       }
     });
     
-    let errorMessage = "Let me try to help you with that.";
+    let errorMessage = "";
     
     if (error.response?.status === 401) {
-      errorMessage = "Authentication issue detected. Please refresh and try again.";
+      errorMessage = "Error 401: Authentication failed. Please check API key configuration.";
     } else if (error.response?.status === 429) {
-      errorMessage = "High traffic detected. Your question is important - just give me a moment and ask again!";
+      errorMessage = "Error 429: Rate limit exceeded. Please wait a moment and try again.";
     } else if (error.response?.status === 400) {
-      errorMessage = "I had trouble understanding that. Could you rephrase your question?";
+      errorMessage = "Error 400: Invalid request format.";
+    } else if (error.response?.status === 503) {
+      errorMessage = "Error 503: Service temporarily unavailable.";
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      errorMessage = "Error: Request timeout (30s exceeded). The AI service is slow, please try again.";
+    } else if (error.code === 'ENOTFOUND') {
+      errorMessage = "Error: Network connection failed.";
+    } else if (error.response?.status) {
+      errorMessage = `Error ${error.response.status}: ${error.response.statusText || 'Request failed'}`;
+    } else {
+      errorMessage = `Error: ${error.message || 'Unknown error occurred'}`;
     }
     
     return {
-      reply: `${errorMessage}`,
+      reply: errorMessage,
       updatedMessages: conversation,
     };
   }
   
   return {
-    reply: "I apologize, but I encountered an unexpected issue. Please try asking your question again.",
+    reply: "Error: Unexpected issue occurred. Please try again.",
     updatedMessages: conversation,
   };
 }
