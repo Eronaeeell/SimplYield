@@ -81,10 +81,7 @@ export function ChatInterface() {
   const parseActionButtons = (content: string): ActionButton[] => {
     const buttons: ActionButton[] = []
     
-    // Split content into lines for better analysis
-    const lines = content.split('\n')
-    
-    // Pattern 1: Direct "X SOL → mSOL" or "X SOL → bSOL"
+    // Pattern 1: "X SOL → mSOL" or "X SOL → bSOL"
     const arrowPattern = /(\d+(?:\.\d+)?)\s+SOL\s*→\s*(mSOL|bSOL)/gi
     let match
     while ((match = arrowPattern.exec(content)) !== null) {
@@ -103,31 +100,43 @@ export function ChatInterface() {
       }
     }
     
-    // Pattern 2: "Enter X SOL" with context
+    // Pattern 2: Look for numbers followed by context about staking
+    // "Stake 4.51 SOL natively" or "Convert to mSOL"
+    const lines = content.split('\n')
     lines.forEach((line, index) => {
-      const enterMatch = /(?:enter|stake)\s+(\d+(?:\.\d+)?)\s+SOL/i.exec(line)
-      if (enterMatch) {
-        const amount = parseFloat(enterMatch[1])
-        
-        // Check context in same line and previous lines
-        const contextLines = lines.slice(Math.max(0, index - 2), index + 1).join(' ').toLowerCase()
-        
-        let toToken: 'MSOL' | 'BSOL' | null = null
-        if (contextLines.includes('marinade') || contextLines.includes('msol')) {
-          toToken = 'MSOL'
-        } else if (contextLines.includes('blaze') || contextLines.includes('bsol')) {
-          toToken = 'BSOL'
+      // Check if line mentions mSOL or bSOL
+      if (line.toLowerCase().includes('msol') || line.toLowerCase().includes('marinade')) {
+        // Look for numbers in this line or nearby lines
+        const numberMatch = /(\d+(?:\.\d+)?)\s*SOL/i.exec(line)
+        if (numberMatch) {
+          const amount = parseFloat(numberMatch[1])
+          if (amount > 0 && !buttons.some(b => b.amount === amount && b.toToken === 'MSOL')) {
+            buttons.push({
+              id: `action_${Date.now()}_${Math.random()}`,
+              label: `Stake ${amount} SOL to MSOL`,
+              action: 'stake_to_msol',
+              amount,
+              fromToken: 'SOL',
+              toToken: 'MSOL',
+            })
+          }
         }
-        
-        if (amount > 0 && toToken && !buttons.some(b => b.amount === amount && b.toToken === toToken)) {
-          buttons.push({
-            id: `action_${Date.now()}_${Math.random()}`,
-            label: `Stake ${amount} SOL to ${toToken}`,
-            action: toToken === 'BSOL' ? 'stake_to_bsol' : 'stake_to_msol',
-            amount,
-            fromToken: 'SOL',
-            toToken,
-          })
+      }
+      
+      if (line.toLowerCase().includes('bsol') || line.toLowerCase().includes('blaze')) {
+        const numberMatch = /(\d+(?:\.\d+)?)\s*SOL/i.exec(line)
+        if (numberMatch) {
+          const amount = parseFloat(numberMatch[1])
+          if (amount > 0 && !buttons.some(b => b.amount === amount && b.toToken === 'BSOL')) {
+            buttons.push({
+              id: `action_${Date.now()}_${Math.random()}`,
+              label: `Stake ${amount} SOL to BSOL`,
+              action: 'stake_to_bsol',
+              amount,
+              fromToken: 'SOL',
+              toToken: 'BSOL',
+            })
+          }
         }
       }
     })
@@ -189,12 +198,13 @@ export function ChatInterface() {
     }
   }, [messages.length])
 
-  const handleSendMessage = async () => {
-    if (!input.trim()) return
+  const handleSendMessage = async (messageOverride?: string) => {
+    const messageText = messageOverride || input
+    if (!messageText.trim()) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input,
+      content: messageText,
       sender: "user",
       timestamp: new Date(),
     }
@@ -207,7 +217,7 @@ export function ChatInterface() {
     try {
       // Skip NLU for casual conversation (greetings, short messages without commands)
       const casualPatterns = /^(hi|hey|hello|sup|yo|how are you|what's up|whats up|hows it going)$/i
-      const isCasualInput = casualPatterns.test(input.trim()) || (input.length < 8 && !input.match(/\d/))
+      const isCasualInput = casualPatterns.test(messageText.trim()) || (messageText.length < 8 && !messageText.match(/\d/))
       
       if (isCasualInput && !pendingIntent) {
         console.log('💬 Casual input detected, skipping NLU')
@@ -215,7 +225,7 @@ export function ChatInterface() {
       }
 
       // Process input with NLU
-      let nluResult = await nluService.processInput(input)
+      let nluResult = await nluService.processInput(messageText)
       
       // Check if user is providing missing info from previous request
       if (pendingIntent && nluResult.entities.amount && !nluResult.valid) {
@@ -227,7 +237,7 @@ export function ChatInterface() {
             ...nluResult.entities
           },
           valid: true,
-          originalText: input
+          originalText: messageText
         } as any
         setPendingIntent(null)
       }
@@ -702,7 +712,7 @@ const handleSuggestionClick = async (text: string) => {
           
         case INTENTS.STAKE_MSOL:
           reply = await handleStakeToMSOLCommand(
-            `stake ${nluResult.entities.amount} to msol`,
+            `stake ${nluResult.entities.amount} sol to msol`,
             { publicKey, signTransaction, sendTransaction, connection }
           )
           break
@@ -713,7 +723,7 @@ const handleSuggestionClick = async (text: string) => {
             break
           }
           reply = await handleStakeToBSOLCommand(
-            `stake ${nluResult.entities.amount} to bsol`,
+            `stake ${nluResult.entities.amount} sol to bsol`,
             {
               publicKey,
               signTransaction: signTransaction as (tx: Transaction) => Promise<Transaction>,
@@ -1052,72 +1062,11 @@ const handleSuggestionClick = async (text: string) => {
   }
 
   const handleActionButtonClick = async (button: ActionButton) => {
-    if (!publicKey || !signTransaction || !sendTransaction) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: "⚠️ Please connect your wallet first.",
-          sender: "bot",
-          timestamp: new Date(),
-        },
-      ])
-      return
-    }
-
-    try {
-      setIsTyping(true)
-
-      if (button.action === 'stake_to_bsol') {
-        const result = await handleStakeToBSOLCommand(
-          button.amount,
-          publicKey,
-          connection,
-          signTransaction,
-          sendTransaction
-        )
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            content: result.message,
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ])
-      } else if (button.action === 'stake_to_msol') {
-        const result = await handleStakeToMSOLCommand(
-          button.amount,
-          publicKey,
-          connection,
-          signTransaction,
-          sendTransaction
-        )
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            content: result.message,
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ])
-      }
-    } catch (error: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: `❌ Transaction failed: ${error.message || 'Unknown error'}`,
-          sender: "bot",
-          timestamp: new Date(),
-        },
-      ])
-    } finally {
-      setIsTyping(false)
-    }
+    // Simulate user typing the command
+    const command = `stake ${button.amount} SOL to ${button.toToken}`
+    
+    // Send the command directly
+    handleSendMessage(command)
   }
 
 
@@ -1310,15 +1259,19 @@ const handleSuggestionClick = async (text: string) => {
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => setIsInputFocused(false)}
                 placeholder="Type a message or command..."
-                className="bg-transparent border-gray-600/30 text-white focus:ring-purple-500 focus:border-purple-500 pl-4 pr-10 py-6 rounded-xl transition-all duration-300"
+                className="bg-transparent border-gray-600/30 text-white focus:ring-purple-500 focus:border-purple-500 pl-4 pr-10 py-6 rounded-xl transition-all duration-300 h-12"
               />
             </motion.div>
             <motion.button
-              onClick={handleSendMessage}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleSendMessage()
+              }}
               disabled={!input.trim()}
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.9 }}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-full h-7 w-7 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-full h-7 w-7 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 pointer-events-auto"
             >
               <Send className="h-3.5 w-3.5 text-white" />
             </motion.button>
