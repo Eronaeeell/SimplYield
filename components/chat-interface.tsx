@@ -29,6 +29,7 @@ import { getNLUService, INTENTS } from "@/lib/nlu/nlu-service"
 import { TransactionConfirmation, PendingTransaction } from "@/components/transaction-confirmation"
 import { StakeAccountSelector, StakeAccount } from "@/components/stake-account-selector"
 import { getUserStakeAccounts } from "@/lib/getUserStakeAccounts"
+import { getUserPortfolio, PortfolioData } from "@/lib/portfolio-service"
 
 type Message = {
   id: string
@@ -63,11 +64,40 @@ export function ChatInterface() {
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction & { nluResult: any } | null>(null)
   const [cachedStakeAccounts, setCachedStakeAccounts] = useState<StakeAccount[]>([])
   const [unstakeAction, setUnstakeAction] = useState<'unstake' | 'withdraw' | null>(null)
+  const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null)
+  const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(false)
 
   // Initialize NLU service on mount
   useEffect(() => {
     nluService.initialize().catch(console.error)
   }, [])
+
+  // Fetch portfolio data when wallet connects
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      if (!publicKey || !connection) {
+        setPortfolioData(null)
+        return
+      }
+
+      setIsLoadingPortfolio(true)
+      try {
+        const portfolio = await getUserPortfolio(connection, publicKey)
+        setPortfolioData(portfolio)
+        console.log('📊 Portfolio loaded:', portfolio)
+      } catch (error) {
+        console.error('Failed to fetch portfolio:', error)
+        setPortfolioData(null)
+      } finally {
+        setIsLoadingPortfolio(false)
+      }
+    }
+
+    fetchPortfolio()
+    // Refresh portfolio every 30 seconds when wallet is connected
+    const interval = setInterval(fetchPortfolio, 30000)
+    return () => clearInterval(interval)
+  }, [publicKey, connection])
 
   const suggestions: SuggestionBubble[] = [
     { id: "s1", text: "Stake 1 SOL", icon: <Sparkles className="h-3 w-3" /> },
@@ -456,7 +486,7 @@ export function ChatInterface() {
     }
     
     try {
-      // Fetch response from API
+      // Fetch response from API with portfolio data
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -468,6 +498,7 @@ export function ChatInterface() {
             role: m.sender === "user" ? "user" : "assistant",
             content: m.content,
           })),
+          portfolioData: portfolioData, // Pass portfolio data to API
         }),
       })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { chatWithSolanaBot } from "@/lib/chatbot"
 import type { Message } from "@/lib/chatbot"
+import type { PortfolioData } from "@/lib/portfolio-service"
 
 // Use Node runtime to avoid ArrayBuffer detachment issues
 export const runtime = 'nodejs'
@@ -8,17 +9,21 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { prompt, messages } = body
+  const { prompt, messages, portfolioData } = body
 
   if (typeof prompt !== "string" || !Array.isArray(messages)) {
-    return new Response(JSON.stringify({ error: "Invalid request body. Expecting { prompt: string, messages: Message[] }" }), {
+    return new Response(JSON.stringify({ error: "Invalid request body. Expecting { prompt: string, messages: Message[], portfolioData?: PortfolioData }" }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     })
   }
 
   try {
-    const { reply } = await chatWithSolanaBot(prompt, messages as Message[])
+    const { reply } = await chatWithSolanaBot(
+      prompt, 
+      messages as Message[], 
+      portfolioData as PortfolioData | null
+    )
     
     // Return simple JSON response instead of streaming to avoid ArrayBuffer issues
     return NextResponse.json({ reply }, {

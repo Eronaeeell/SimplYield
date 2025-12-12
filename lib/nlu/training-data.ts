@@ -23,6 +23,8 @@ export const INTENTS = {
   BALANCE: 'BALANCE',
   PRICE: 'PRICE',
   MARKET_DATA: 'MARKET_DATA',
+  PORTFOLIO_ANALYSIS: 'PORTFOLIO_ANALYSIS',
+  PORTFOLIO_RECOMMENDATION: 'PORTFOLIO_RECOMMENDATION',
 } as const;
 
 export type Intent = typeof INTENTS[keyof typeof INTENTS];
@@ -382,6 +384,80 @@ export const generateTrainingData = (): TrainingExample[] => {
     data.push({
       text,
       intent: INTENTS.MARKET_DATA,
+      entities: {},
+    });
+  });
+
+  // ========== PORTFOLIO_ANALYSIS ==========
+  const portfolioAnalysisTemplates = [
+    "analyze my portfolio",
+    "check my portfolio",
+    "show my portfolio",
+    "what's in my portfolio",
+    "portfolio overview",
+    "my holdings",
+    "show my holdings",
+    "what do i have",
+    "what assets do i have",
+    "show my assets",
+    "portfolio breakdown",
+    "asset breakdown",
+    "my balance",
+    "what's my balance",
+    "check my balance",
+    "show balance",
+    "how much do i have",
+    "portfolio distribution",
+    "asset distribution",
+    "how is my portfolio distributed",
+    "show my allocation",
+    "asset allocation",
+    "portfolio allocation",
+    "what's my allocation",
+    "how are my assets allocated",
+  ];
+
+  portfolioAnalysisTemplates.forEach(text => {
+    data.push({
+      text,
+      intent: INTENTS.PORTFOLIO_ANALYSIS,
+      entities: {},
+    });
+  });
+
+  // ========== PORTFOLIO_RECOMMENDATION ==========
+  const portfolioRecommendationTemplates = [
+    "suggest improvements",
+    "how can i improve my portfolio",
+    "optimize my portfolio",
+    "what should i do with my portfolio",
+    "any recommendations",
+    "portfolio recommendations",
+    "how to optimize",
+    "give me suggestions",
+    "what should i change",
+    "should i rebalance",
+    "should i move from msol to bsol",
+    "should i switch from bsol to msol",
+    "which is better msol or bsol",
+    "should i stake more",
+    "what's the best strategy",
+    "how can i maximize yields",
+    "improve my returns",
+    "better allocation",
+    "portfolio advice",
+    "investment advice",
+    "what do you recommend",
+    "any suggestions for my portfolio",
+    "help me optimize",
+    "how to get better yields",
+    "increase my apy",
+  ];
+
+  portfolioRecommendationTemplates.forEach(text => {
+    data.push({
+      text,
+      intent: INTENTS.PORTFOLIO_RECOMMENDATION,
       entities: {},
     });
   });

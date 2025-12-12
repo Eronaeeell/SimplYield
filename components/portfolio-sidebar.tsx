@@ -1,19 +1,15 @@
 "use client"
 import { useEffect, useState } from "react"
-import { useWallet } from "@solana/wallet-adapter-react"
-import { Connection, PublicKey } from "@solana/web3.js"
+import { useWallet, useConnection } from "@solana/wallet-adapter-react"
 import { X, ChevronDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AnimatedNumber } from "@/components/ui/animated-number"
-import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token"
 import { AnimatedPieChart } from "@/components/ui/animated-pie-chart"
 import { AnimatedCard } from "@/components/ui/animated-card"
-import { fetchPortfolioPrices, fetchStakingAPY, formatPrice, formatAPY } from "@/lib/coingecko-service"
-
-const BSOL_MINT = new PublicKey("bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1")
-const MSOL_MINT = new PublicKey("mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So")
+import { formatPrice, formatAPY } from "@/lib/coingecko-service"
+import { getUserPortfolio, PortfolioData } from "@/lib/portfolio-service"
 
 interface PortfolioSidebarProps {
   isOpen: boolean
@@ -22,104 +18,54 @@ interface PortfolioSidebarProps {
 
 export function PortfolioSidebar({ isOpen, onClose }: PortfolioSidebarProps) {
   const { publicKey } = useWallet()
-  const connection = new Connection("https://api.devnet.solana.com")
+  const { connection } = useConnection()
 
-  const [solBalance, setSolBalance] = useState<number | null>(null)
-  const [bsolBalance, setBsolBalance] = useState(0)
-  const [msolBalance, setMsolBalance] = useState(0)
+  const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null)
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null)
-  const [prices, setPrices] = useState({ sol: 0, msol: 0, bsol: 0 })
-  const [apys, setApys] = useState({ sol: 0, msol: 0, bsol: 0 })
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    const fetchAllBalances = async () => {
-      if (!publicKey) return
-
-      try {
-        const [solLamports, bsolResult, msolResult] = await Promise.all([
-          connection.getBalance(publicKey),
-          getAssociatedTokenAddress(BSOL_MINT, publicKey)
-            .then((ata: PublicKey) => getAccount(connection, ata))
-            .catch(() => null),
-          connection.getParsedTokenAccountsByOwner(publicKey, { mint: MSOL_MINT })
-            .catch(() => ({ value: [] }))
-        ])
-
-        setSolBalance(solLamports / 1e9)
-        setBsolBalance(bsolResult ? Number(bsolResult.amount) / 1e9 : 0)
-        
-        if (msolResult.value.length > 0) {
-          const amount = msolResult.value[0].account.data.parsed.info.tokenAmount.uiAmount
-          setMsolBalance(amount ?? 0)
-        } else {
-          setMsolBalance(0)
-        }
-      } catch (err) {
-        console.error('Failed to fetch balances:', err)
+    const fetchPortfolio = async () => {
+      if (!publicKey || !connection) {
+        setPortfolioData(null)
+        return
       }
-    }
 
-    fetchAllBalances()
-  }, [publicKey])
-
-  useEffect(() => {
-    const fetchPriceData = async () => {
+      setIsLoading(true)
       try {
-        const [priceData, apyData] = await Promise.all([
-          fetchPortfolioPrices(),
-          fetchStakingAPY(),
-        ])
-        setPrices(priceData)
-        setApys(apyData)
+        const portfolio = await getUserPortfolio(connection, publicKey)
+        setPortfolioData(portfolio)
       } catch (error) {
-        console.error("Error fetching price data:", error)
+        console.error('Failed to fetch portfolio:', error)
+        setPortfolioData(null)
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    fetchPriceData()
-    const interval = setInterval(fetchPriceData, 60000)
+    fetchPortfolio()
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPortfolio, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [publicKey, connection])
 
-  const totalBalance = (solBalance ?? 0) + bsolBalance + msolBalance
-  
-  const totalValueUSD = 
-    (solBalance ?? 0) * prices.sol +
-    bsolBalance * prices.bsol +
-    msolBalance * prices.msol
+  const totalBalance = portfolioData?.totalSOLEquivalent ?? 0
+  const totalValueUSD = portfolioData?.totalValueUSD ?? 0
 
-  const portfolioAssets = [
-    {
-      id: "sol",
-      name: "SOL",
-      value: solBalance ?? 0,
-      price: prices.sol,
-      apy: apys.sol,
-      color: "#8b5cf6",
-      percentage: parseFloat((((solBalance ?? 0) / totalBalance) * 100).toFixed(2)),
-      valueUSD: (solBalance ?? 0) * prices.sol,
-    },
-    {
-      id: "bsol",
-      name: "bSOL",
-      value: bsolBalance,
-      price: prices.bsol,
-      apy: apys.bsol,
-      color: "#38bdf8",
-      percentage: parseFloat(((bsolBalance / totalBalance) * 100).toFixed(2)),
-      valueUSD: bsolBalance * prices.bsol,
-    },
-    {
-      id: "msol",
-      name: "mSOL",
-      value: msolBalance,
-      price: prices.msol,
-      apy: apys.msol,
-      color: "#22c55e",
-      percentage: parseFloat(((msolBalance / totalBalance) * 100).toFixed(2)),
-      valueUSD: msolBalance * prices.msol,
-    },
-  ]
+  const portfolioAssets = portfolioData?.assets.map(asset => ({
+    id: asset.symbol.toLowerCase(),
+    name: asset.symbol === 'SOL' ? 'SOL (Liquidity)' : asset.symbol === 'STAKED_SOL' ? 'SOL' : asset.symbol,
+    value: asset.amount,
+    price: asset.priceUSD,
+    apy: asset.apy ?? 0,
+    color: asset.symbol === 'SOL' ? '#8b5cf6' : 
+           asset.symbol === 'STAKED_SOL' ? '#6b7280' :
+           asset.symbol === 'bSOL' ? '#f97316' : 
+           asset.symbol === 'mSOL' ? '#22c55e' : 
+           asset.symbol === 'jitoSOL' ? '#3b82f6' : '#6b7280',
+    percentage: asset.percentage,
+    valueUSD: asset.valueUSD,
+  })) ?? []
 
   return (
     <>
@@ -171,12 +117,12 @@ export function PortfolioSidebar({ isOpen, onClose }: PortfolioSidebarProps) {
                     outerRadius={90}
                   />
                 </div>
-                <div className="flex items-center justify-center gap-3 mt-3">
+                <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
                   {portfolioAssets.map((asset) => (
                     <div key={asset.id} className="flex items-center gap-2 bg-gray-800/30 rounded px-2.5 py-1.5">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: asset.color }}></div>
                       <span className="text-xs font-medium">{asset.name}</span>
-                      <span className="text-xs text-gray-400">{asset.percentage}%</span>
+                      <span className="text-xs text-gray-400">{asset.percentage.toFixed(2)}%</span>
                     </div>
                   ))}
                 </div>
@@ -241,7 +187,7 @@ export function PortfolioSidebar({ isOpen, onClose }: PortfolioSidebarProps) {
                               </div>
                               <div className="bg-gray-800/50 p-2.5 rounded border border-gray-700/50">
                                 <p className="text-xs text-gray-400 mb-1">Share</p>
-                                <p className="text-sm font-medium">{asset.percentage}%</p>
+                                <p className="text-sm font-medium">{asset.percentage.toFixed(2)}%</p>
                               </div>
                               <div className="bg-gray-800/50 p-2.5 rounded border border-gray-700/50">
                                 <p className="text-xs text-gray-400 mb-1">APY</p>

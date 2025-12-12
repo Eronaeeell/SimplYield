@@ -176,35 +176,11 @@ async function fetchNativeSOLAPY(): Promise<number> {
 }
 
 /**
- * Fetch real-time mSOL APY from Marinade Finance
+ * Get mSOL APY - Fixed rate
  */
 async function fetchMarinadeAPY(): Promise<number> {
-  try {
-    // Marinade Finance APY endpoint
-    const response = await axios.get("https://api.marinade.finance/msol/apy/1d", {
-      timeout: 5000,
-    });
-    
-    console.log("Marinade API response:", response.data);
-    
-    // Handle different response formats
-    let apyValue = 0;
-    if (typeof response.data === 'number') {
-      apyValue = response.data;
-    } else if (response.data?.value !== undefined) {
-      apyValue = response.data.value;
-    } else if (response.data?.apy !== undefined) {
-      apyValue = response.data.apy;
-    }
-    
-    // Convert decimal to percentage if needed
-    const finalApy = apyValue > 1 ? apyValue : apyValue * 100;
-    console.log("Marinade APY:", finalApy);
-    return finalApy > 0 ? finalApy : 6.8;
-  } catch (error: any) {
-    console.error("Error fetching Marinade APY:", error.message);
-    return 6.8; // Fallback to estimated value
-  }
+  // mSOL APY is fixed at 6.45%
+  return 6.45;
 }
 
 /**
@@ -244,7 +220,7 @@ export async function fetchStakingAPY(): Promise<StakingAPY> {
     // Use current rates if APIs return 0 or fail
     return {
       sol: solAPY > 0 ? solAPY : 6.28,
-      msol: msolAPY > 0 ? msolAPY : 6.42,
+      msol: 6.45, // Fixed mSOL APY
       bsol: bsolAPY > 0 ? bsolAPY : 7.5,
     };
   } catch (error) {
@@ -252,7 +228,7 @@ export async function fetchStakingAPY(): Promise<StakingAPY> {
     // Return current rates as fallback
     return {
       sol: 6.28,
-      msol: 6.42,
+      msol: 6.41, // Fixed mSOL APY
       bsol: 7.5,
     };
   }

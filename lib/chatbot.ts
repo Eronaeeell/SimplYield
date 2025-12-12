@@ -1,6 +1,7 @@
 // lib/solanaChatbot.ts
 import axios from "axios";
 import { fetchTokenPrice, fetchTokenMarketData, TOKEN_IDS } from "@/lib/coingecko-service";
+import { PortfolioData, formatPortfolioForAI, analyzePortfolio } from "@/lib/portfolio-service";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -13,11 +14,15 @@ const systemMessage: Message = {
   role: "system",
   content: `You are a knowledgeable AI assistant focused on Solana DeFi. Current year is 2025. Provide up-to-date, accurate information about the Solana ecosystem.
 
+IMPORTANT: You have access to the user's REAL portfolio data. Use this information to provide personalized, actionable advice specific to their holdings.
+
 RESPONSE STYLE:
 - Be direct and concise - get to the point quickly
 - Provide actionable information, not unnecessary explanations
 - Only elaborate when the user asks for more details
 - Focus on practical, real-world applications
+- When discussing the user's portfolio, reference ACTUAL holdings and values
+- Provide SPECIFIC recommendations based on their current positions
 
 FORMATTING RULES:
 1. Structure:
@@ -42,12 +47,42 @@ FORMATTING RULES:
    - Include risks and best practices
    - End with clear next steps
 
+PORTFOLIO ANALYSIS:
+- When asked about portfolio, reference the user's ACTUAL holdings
+- Provide specific recommendations based on their current allocation
+- Calculate potential gains/losses with real numbers
+- Suggest optimizations based on APY differences
+- Warn about concentration risk if needed
+- Never make up or assume portfolio data - only use what's provided
+
 Be precise, current, and efficient in your responses.`,
 };
 
 // Detect intent based on input
-function detectIntent(userInput: string): { intent: string; tokenId?: string; tokenName?: string } | null {
+function detectIntent(userInput: string): { 
+  intent: string; 
+  tokenId?: string; 
+  tokenName?: string;
+  isPortfolioQuery?: boolean;
+} | null {
   const lower = userInput.toLowerCase();
+
+  // Portfolio queries
+  if (
+    lower.includes('portfolio') || 
+    lower.includes('my holdings') || 
+    lower.includes('my assets') ||
+    lower.includes('my balance') ||
+    lower.includes('what do i have') ||
+    lower.includes('distribution') ||
+    lower.includes('allocation') ||
+    lower.includes('how is my') ||
+    lower.includes('analyze my') ||
+    lower.includes('suggest') && (lower.includes('portfolio') || lower.includes('holdings')) ||
+    lower.includes('should i') && (lower.includes('move') || lower.includes('switch') || lower.includes('stake'))
+  ) {
+    return { intent: "portfolio_analysis", isPortfolioQuery: true };
+  }
 
   // Price queries
   if (lower.includes("sol") && lower.includes("price") && !lower.includes("msol") && !lower.includes("bsol")) {
@@ -85,10 +120,22 @@ function detectIntent(userInput: string): { intent: string; tokenId?: string; to
 // Chatbot Handler
 export async function chatWithSolanaBot(
   userInput: string,
-  prevMessages: Message[]
+  prevMessages: Message[],
+  portfolioData?: PortfolioData | null
 ): Promise<{ reply: string; updatedMessages: Message[] }> {
   const conversation: Message[] = [...prevMessages];
   const intentInfo = detectIntent(userInput);
+
+  // Handle portfolio analysis queries - let AI analyze instead of using templates
+  if (intentInfo?.isPortfolioQuery) {
+    if (!portfolioData || portfolioData.assets.length === 0) {
+      const reply = "⚠️ I don't have access to your portfolio data yet. Please connect your wallet to view and analyze your holdings.";
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    // Continue to let AI model analyze the portfolio naturally
+  }
 
   if (intentInfo) {
     const { tokenId, tokenName, intent } = intentInfo;
@@ -124,6 +171,16 @@ export async function chatWithSolanaBot(
   // General conversation if no price or market intent
   conversation.push({ role: "user", content: userInput });
 
+  // Add portfolio context to the conversation if available
+  if (portfolioData && portfolioData.assets.length > 0) {
+    const portfolioContext = formatPortfolioForAI(portfolioData);
+    // Insert portfolio context before the user's message for AI awareness
+    conversation.splice(conversation.length - 1, 0, {
+      role: "system",
+      content: portfolioContext
+    });
+  }
+
   // Check if API key is available
   if (!process.env.OPENROUTER_API_KEY) {
     console.error("OPENROUTER_API_KEY is not set");
@@ -149,7 +206,7 @@ export async function chatWithSolanaBot(
       const response = await axios.post(
         OPENROUTER_URL,
         {
-          model: "qwen/qwen3-235b-a22b:free",
+          model: "tngtech/deepseek-r1t2-chimera:free",
           messages: [systemMessage, ...conversation],
           temperature: 0.7,
         },
