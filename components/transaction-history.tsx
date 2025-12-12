@@ -42,21 +42,21 @@ export function TransactionHistory() {
     }
   }, [publicKey, connected]);
 
+  // Auto-refresh transactions every 10 seconds
   useEffect(() => {
-    const handleRefreshEvent = () => {
-      if (publicKey && connected) {
-        fetchTransactions(publicKey);
-      }
-    };
-    
-    window.addEventListener('refresh-transactions', handleRefreshEvent);
-    return () => window.removeEventListener('refresh-transactions', handleRefreshEvent);
+    if (!publicKey || !connected) return;
+
+    const interval = setInterval(() => {
+      fetchTransactions(publicKey);
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [publicKey, connected]);
 
   const fetchTransactions = async (walletPublicKey: PublicKey) => {
     setLoading(true);
     try {
-      const confirmedSignatures = await connection.getSignaturesForAddress(walletPublicKey, { limit: 2 });
+      const confirmedSignatures = await connection.getSignaturesForAddress(walletPublicKey, { limit: 5 });
       const transactions = await Promise.all(
         confirmedSignatures.map(async (signatureInfo) => {
           try {

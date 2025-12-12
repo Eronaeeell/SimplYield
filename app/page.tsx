@@ -8,10 +8,11 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
 import { ChatInterface } from "@/components/chat-interface"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { PageTransition } from "@/components/ui/page-transition"
-import { Shield, Sparkles, MessageSquare, Wallet, BarChart2, RefreshCcw } from "lucide-react"
+import { Shield, Sparkles, MessageSquare, Wallet, BarChart2 } from "lucide-react"
 import { TransactionHistory } from "@/components/transaction-history"
 import { MiniNotification } from "@/components/ui/mini-notification"
 import { useConnection } from "@solana/wallet-adapter-react"
+import { PortfolioSidebar } from "@/components/portfolio-sidebar"
 
 export default function Home() {
   const router = useRouter()
@@ -26,6 +27,8 @@ export default function Home() {
   const [showMiniNotif, setShowMiniNotif] = useState(false)
   const [receivedAmount, setReceivedAmount] = useState(0)
   const prevTxSignatures = useRef<string[]>([])
+  
+  const [isPortfolioOpen, setIsPortfolioOpen] = useState(false)
 
   useEffect(() => {
     if (connected && publicKey) {
@@ -105,17 +108,6 @@ export default function Home() {
 
                 {/* Right Section */}
                 <div className="flex items-center gap-3">
-                  {/* Portfolio Button */}
-                  <motion.button
-                    onClick={() => router.push("/portfolio")}
-                    className="px-4 py-2 rounded-lg border border-gray-700/50 bg-gray-800/50 text-gray-300 text-sm font-medium hover:border-purple-500/50 hover:bg-gray-800/80 flex items-center gap-2 backdrop-blur-sm transition-all"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <BarChart2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Portfolio</span>
-                  </motion.button>
-
                   {/* Wallet Address Badge */}
                   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm">
                     <div className="flex items-center gap-2">
@@ -144,24 +136,23 @@ export default function Home() {
             </div>
           </motion.header>
 
-          <motion.div className="container mx-auto p-4 flex flex-col items-center gap-6 flex-grow max-w-5xl">
+          <motion.div 
+            className="flex flex-col items-center gap-6 flex-grow transition-all duration-300 p-4"
+            style={{
+              maxWidth: isPortfolioOpen ? '800px' : '1280px',
+              marginRight: isPortfolioOpen ? '600px' : 'auto',
+              marginLeft: 'auto',
+              width: '100%'
+            }}
+          >
             <motion.div className="w-full">
               <ChatInterface/>
             </motion.div>
 
             <motion.div className="w-full max-w-xl">
               <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
-                <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <div className="p-4 border-b border-gray-700">
                   <h3 className="font-medium text-white">Recent Transactions</h3>
-                  <button
-                    onClick={() => {
-                      // Trigger refresh via custom event
-                      window.dispatchEvent(new CustomEvent('refresh-transactions'));
-                    }}
-                    className="flex items-center justify-center text-white border border-blue-600 rounded-full px-3 py-1 text-sm hover:bg-blue-600/20 transition-colors"
-                  >
-                    <RefreshCcw className="h-3 w-3 mr-1" /> Refresh
-                  </button>
                 </div>
                 <TransactionHistory />
               </div>
@@ -183,6 +174,25 @@ export default function Home() {
             onClose={() => setShowMiniNotif(false)}
             wallet={{ publicKey, signTransaction, sendTransaction }}
             connection={connection} // pass only what is needed
+          />
+
+          {/* Floating Portfolio Button */}
+          <motion.button
+            onClick={() => setIsPortfolioOpen(true)}
+            className="fixed right-6 bottom-6 p-4 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all z-30"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <BarChart2 className="h-6 w-6" />
+          </motion.button>
+
+          {/* Portfolio Sidebar */}
+          <PortfolioSidebar
+            isOpen={isPortfolioOpen}
+            onClose={() => setIsPortfolioOpen(false)}
           />
 
         </main>

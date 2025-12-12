@@ -167,11 +167,11 @@ async function fetchNativeSOLAPY(): Promise<number> {
     }
     
     console.log("Using fallback SOL APY");
-    return 7.2;
+    return 6.37;
   } catch (error: any) {
     console.error("Error fetching native SOL APY:", error.message);
-    // Fallback to estimated 7.2% APY
-    return 7.2;
+    // Fallback to fixed 6.37% APY
+    return 6.37;
   }
 }
 
@@ -200,10 +200,10 @@ async function fetchMarinadeAPY(): Promise<number> {
     // Convert decimal to percentage if needed
     const finalApy = apyValue > 1 ? apyValue : apyValue * 100;
     console.log("Marinade APY:", finalApy);
-    return finalApy > 0 ? finalApy : 6.8;
+    return finalApy > 0 ? finalApy : 6.41;
   } catch (error: any) {
     console.error("Error fetching Marinade APY:", error.message);
-    return 6.8; // Fallback to estimated value
+    return 6.41; // Fallback to fixed value
   }
 }
 
@@ -243,16 +243,16 @@ export async function fetchStakingAPY(): Promise<StakingAPY> {
 
     // Use current rates if APIs return 0 or fail
     return {
-      sol: solAPY > 0 ? solAPY : 6.28,
-      msol: msolAPY > 0 ? msolAPY : 6.42,
+      sol: solAPY > 0 ? solAPY : 6.37,
+      msol: msolAPY > 0 ? msolAPY : 6.41,
       bsol: bsolAPY > 0 ? bsolAPY : 7.5,
     };
   } catch (error) {
     console.error("Error fetching staking APY:", error);
     // Return current rates as fallback
     return {
-      sol: 6.28,
-      msol: 6.42,
+      sol: 6.37,
+      msol: 6.41,
       bsol: 7.5,
     };
   }
