@@ -137,7 +137,7 @@ export default function Home() {
           </motion.header>
 
           <motion.div 
-            className="flex flex-col items-center gap-6 flex-grow transition-all duration-300 p-4"
+            className="flex flex-col items-center gap-6 flex-grow transition-all duration-300 p-4 pt-2"
             style={{
               maxWidth: isPortfolioOpen ? '800px' : '1280px',
               marginRight: isPortfolioOpen ? '600px' : 'auto',

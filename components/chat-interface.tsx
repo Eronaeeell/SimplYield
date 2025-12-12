@@ -41,6 +41,16 @@ type Message = {
     accounts: StakeAccount[]
     action: 'unstake' | 'withdraw'
   }
+  actionButtons?: ActionButton[]
+}
+
+type ActionButton = {
+  id: string
+  label: string
+  action: 'stake_to_bsol' | 'stake_to_msol' | 'unstake' | 'swap'
+  amount: number
+  fromToken?: string
+  toToken?: string
 }
 
 type SuggestionBubble = {
@@ -66,6 +76,64 @@ export function ChatInterface() {
   const [unstakeAction, setUnstakeAction] = useState<'unstake' | 'withdraw' | null>(null)
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null)
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(false)
+
+  // Parse AI response for actionable suggestions
+  const parseActionButtons = (content: string): ActionButton[] => {
+    const buttons: ActionButton[] = []
+    
+    // Split content into lines for better analysis
+    const lines = content.split('\n')
+    
+    // Pattern 1: Direct "X SOL → mSOL" or "X SOL → bSOL"
+    const arrowPattern = /(\d+(?:\.\d+)?)\s+SOL\s*→\s*(mSOL|bSOL)/gi
+    let match
+    while ((match = arrowPattern.exec(content)) !== null) {
+      const amount = parseFloat(match[1])
+      const toToken = match[2].toUpperCase() as 'MSOL' | 'BSOL'
+      
+      if (amount > 0 && !buttons.some(b => b.amount === amount && b.toToken === toToken)) {
+        buttons.push({
+          id: `action_${Date.now()}_${Math.random()}`,
+          label: `Stake ${amount} SOL to ${toToken}`,
+          action: toToken === 'BSOL' ? 'stake_to_bsol' : 'stake_to_msol',
+          amount,
+          fromToken: 'SOL',
+          toToken,
+        })
+      }
+    }
+    
+    // Pattern 2: "Enter X SOL" with context
+    lines.forEach((line, index) => {
+      const enterMatch = /(?:enter|stake)\s+(\d+(?:\.\d+)?)\s+SOL/i.exec(line)
+      if (enterMatch) {
+        const amount = parseFloat(enterMatch[1])
+        
+        // Check context in same line and previous lines
+        const contextLines = lines.slice(Math.max(0, index - 2), index + 1).join(' ').toLowerCase()
+        
+        let toToken: 'MSOL' | 'BSOL' | null = null
+        if (contextLines.includes('marinade') || contextLines.includes('msol')) {
+          toToken = 'MSOL'
+        } else if (contextLines.includes('blaze') || contextLines.includes('bsol')) {
+          toToken = 'BSOL'
+        }
+        
+        if (amount > 0 && toToken && !buttons.some(b => b.amount === amount && b.toToken === toToken)) {
+          buttons.push({
+            id: `action_${Date.now()}_${Math.random()}`,
+            label: `Stake ${amount} SOL to ${toToken}`,
+            action: toToken === 'BSOL' ? 'stake_to_bsol' : 'stake_to_msol',
+            amount,
+            fromToken: 'SOL',
+            toToken,
+          })
+        }
+      }
+    })
+
+    return buttons
+  }
 
   // Initialize NLU service on mount
   useEffect(() => {
@@ -513,7 +581,10 @@ export function ChatInterface() {
         throw new Error("Empty response from server")
       }
 
-      // Add bot message with the reply
+      // Parse action buttons from AI response
+      const actionButtons = parseActionButtons(data.reply)
+
+      // Add bot message with the reply and action buttons
       setMessages((prev) => [
         ...prev,
         {
@@ -521,6 +592,7 @@ export function ChatInterface() {
           content: data.reply,
           sender: "bot",
           timestamp: new Date(),
+          actionButtons: actionButtons.length > 0 ? actionButtons : undefined,
         },
       ])
 
@@ -979,6 +1051,75 @@ const handleSuggestionClick = async (text: string) => {
     ])
   }
 
+  const handleActionButtonClick = async (button: ActionButton) => {
+    if (!publicKey || !signTransaction || !sendTransaction) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: "⚠️ Please connect your wallet first.",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
+      return
+    }
+
+    try {
+      setIsTyping(true)
+
+      if (button.action === 'stake_to_bsol') {
+        const result = await handleStakeToBSOLCommand(
+          button.amount,
+          publicKey,
+          connection,
+          signTransaction,
+          sendTransaction
+        )
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: result.message,
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
+      } else if (button.action === 'stake_to_msol') {
+        const result = await handleStakeToMSOLCommand(
+          button.amount,
+          publicKey,
+          connection,
+          signTransaction,
+          sendTransaction
+        )
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            content: result.message,
+            sender: "bot",
+            timestamp: new Date(),
+          },
+        ])
+      }
+    } catch (error: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: `❌ Transaction failed: ${error.message || 'Unknown error'}`,
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
+    } finally {
+      setIsTyping(false)
+    }
+  }
+
 
 
   const messageVariants = {
@@ -993,9 +1134,9 @@ const handleSuggestionClick = async (text: string) => {
   }
 
   return (
-    <Card className="flex flex-col h-full max-h-[700px] w-full bg-transparent border-transparent rounded-xl overflow-hidden shadow-none relative">
+    <Card className="flex flex-col h-full max-h-[800px] w-full bg-transparent border-transparent rounded-xl overflow-hidden shadow-none relative">
       {/* Messages */}
-      <ScrollArea className="flex-grow p-4 relative z-10 h-[280px] md:h-[470px] scroll-smooth">
+      <ScrollArea className="flex-grow p-4 relative z-10 h-[460px] md:h-[940px] scroll-smooth">
         <div className="space-y-6">
           <AnimatePresence>
             {messages.filter(msg => msg.content.trim() !== "" || msg.transactionData || msg.stakeAccountsData).map((msg) => (
@@ -1068,6 +1209,22 @@ const handleSuggestionClick = async (text: string) => {
                         {msg.content}
                       </ReactMarkdown>
                     </div>
+
+                    {/* Action Buttons */}
+                    {msg.actionButtons && msg.actionButtons.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {msg.actionButtons.map((button) => (
+                          <button
+                            key={button.id}
+                            onClick={() => handleActionButtonClick(button)}
+                            className="px-3 py-1.5 text-xs font-medium bg-purple-600/80 hover:bg-purple-600 text-white rounded-md transition-colors border border-purple-500/50"
+                          >
+                            {button.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <div
                       className={`text-xs mt-2 flex justify-end ${
                         msg.sender === "user" ? "text-purple-200/70" : "text-gray-400/70"
