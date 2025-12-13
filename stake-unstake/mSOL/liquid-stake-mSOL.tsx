@@ -30,6 +30,12 @@ export async function handleStakeToMSOLCommand(input: string, ctx: Context): Pro
     const marinade = new Marinade(config)
 
     const { transaction } = await marinade.deposit(lamports)
+    
+    // Ensure transaction has recent blockhash and fee payer
+    const latestBlockhash = await connection.getLatestBlockhash()
+    transaction.recentBlockhash = latestBlockhash.blockhash
+    transaction.feePayer = publicKey
+    
     const signature = await sendTransaction(transaction, connection)
 
     return `✅ Staked ${amount} SOL to mSOL.\n🔗 [View Transaction](https://explorer.solana.com/tx/${signature}?cluster=devnet)`
@@ -67,27 +73,36 @@ export async function handleUnstakeMSOLCommand(input: string, ctx: Context): Pro
     if (amount > msolBalance) return `❌ You only have ${msolBalance.toFixed(4)} mSOL.`
 
     try {
-  const lamports = new BN(Math.floor(amount * 1_000_000_000))
-  const { transaction } = await marinade.liquidUnstake(lamports)
+      const lamports = new BN(Math.floor(amount * 1_000_000_000))
+      console.log("💡 Unstaking lamports:", lamports.toString())
+      
+      const { transaction } = await marinade.liquidUnstake(lamports)
+      console.log("💡 Liquid unstake TX created:", transaction)
 
-  console.log("💡 Liquid unstake TX:", transaction)
+      // Ensure transaction has recent blockhash and fee payer
+      const latestBlockhash = await connection.getLatestBlockhash()
+      transaction.recentBlockhash = latestBlockhash.blockhash
+      transaction.feePayer = publicKey
 
-  const sig = await sendTransaction(transaction, connection)
-  return `✅ Unstaked ${amount} mSOL.\n🔗 [View Transaction](https://explorer.solana.com/tx/${sig}?cluster=devnet)`
-}catch (err) {
-  console.error("Unstake error:", err)
+      console.log("💡 Sending unstake transaction...")
+      const sig = await sendTransaction(transaction, connection)
+      console.log("💡 Transaction sent:", sig)
+      
+      return `✅ Unstaked ${amount} mSOL.\n🔗 [View Transaction](https://explorer.solana.com/tx/${sig}?cluster=devnet)`
+    } catch (err) {
+      console.error("Unstake error:", err)
 
-  let message: string
-  if (err instanceof Error) {
-    message = err.message
-  } else if (typeof err === "object") {
-    message = JSON.stringify(err, null, 2) // readable output
-  } else {
-    message = String(err)
-  }
+      let message: string
+      if (err instanceof Error) {
+        message = err.message
+      } else if (typeof err === "object") {
+        message = JSON.stringify(err, null, 2) // readable output
+      } else {
+        message = String(err)
+      }
 
-  return `❌ Error: ${message}`
-}
+      return `❌ Error: ${message}`
+    }
   }
   return null
 }

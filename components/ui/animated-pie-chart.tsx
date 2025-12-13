@@ -66,10 +66,10 @@ export function AnimatedPieChart({
           {payload.name}
         </text>
         <text x={cx} y={cy + 15} textAnchor="middle" fill="#d1d5db" fontSize={14}>
-          {payload.percentage}%
+          {payload.percentage.toFixed(2)}%
         </text>
         <text x={cx} y={cy + 35} textAnchor="middle" fill="#9ca3af" fontSize={12}>
-          ${payload.value.toLocaleString()}
+          ${payload.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </text>
       </g>
     )
@@ -122,8 +122,8 @@ export function AnimatedPieChart({
                 return (
                   <div className="bg-gray-800 p-2 rounded border border-gray-700 shadow-lg">
                     <p className="font-medium text-white">{data.name}</p>
-                    <p className="text-gray-300">{data.percentage}%</p>
-                    <p className="text-gray-400">${data.value.toLocaleString()}</p>
+                    <p className="text-gray-300">{data.percentage.toFixed(2)}%</p>
+                    <p className="text-gray-400">${data.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
                 )
               }

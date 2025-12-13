@@ -17,6 +17,7 @@ export type PendingTransaction = {
   status?: 'pending' | 'success' | 'failed'
   transactionSignature?: string
   remainingBalance?: number
+  nluResult?: any
 }
 
 type TransactionConfirmationProps = {

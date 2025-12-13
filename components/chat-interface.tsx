@@ -71,7 +71,7 @@ export function ChatInterface() {
   const { connection } = useConnection()
   const nluService = getNLUService()
   const [pendingIntent, setPendingIntent] = useState<{ intent: string; entities: any } | null>(null)
-  const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction & { nluResult: any } | null>(null)
+  const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null)
   const [cachedStakeAccounts, setCachedStakeAccounts] = useState<StakeAccount[]>([])
   const [unstakeAction, setUnstakeAction] = useState<'unstake' | 'withdraw' | null>(null)
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null)
@@ -318,7 +318,7 @@ export function ChatInterface() {
             id: Date.now().toString(),
             type: 'stake',
             token: 'sol',
-            amount: nluResult.entities.amount,
+            amount: nluResult.entities.amount || 0,
             estimatedFee: 0.00001,
             nluResult
           }
@@ -341,7 +341,7 @@ export function ChatInterface() {
             id: Date.now().toString(),
             type: 'stake',
             token: 'msol',
-            amount: nluResult.entities.amount,
+            amount: nluResult.entities.amount || 0,
             estimatedFee: 0.00001,
             nluResult
           }
@@ -368,7 +368,7 @@ export function ChatInterface() {
             id: Date.now().toString(),
             type: 'stake',
             token: 'bsol',
-            amount: nluResult.entities.amount,
+            amount: nluResult.entities.amount || 0,
             estimatedFee: 0.00001,
             nluResult
           }
@@ -456,7 +456,7 @@ export function ChatInterface() {
               id: Date.now().toString(),
               type: 'unstake',
               token: 'msol',
-              amount: nluResult.entities.amount,
+              amount: nluResult.entities.amount || 0,
               estimatedFee: 0.00001,
               nluResult
             }
@@ -481,6 +481,22 @@ export function ChatInterface() {
             reply = "❌ Transaction signing not available"
             break
           }
+          
+          // Check if amount is valid
+          if (!nluResult.entities.amount || nluResult.entities.amount === 0) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                content: "❌ Please specify an amount to unstake. Example: 'unstake 1 bsol'",
+                sender: 'bot',
+                timestamp: new Date(),
+              }
+            ])
+            setIsTyping(false)
+            return
+          }
+          
           const unstakeBsolTransaction: PendingTransaction = {
             id: Date.now().toString(),
             type: 'unstake',
@@ -508,7 +524,7 @@ export function ChatInterface() {
             id: Date.now().toString(),
             type: 'send',
             token: 'sol',
-            amount: nluResult.entities.amount,
+            amount: nluResult.entities.amount || 0,
             recipient: nluResult.entities.address,
             estimatedFee: 0.00005,
             nluResult
@@ -695,7 +711,12 @@ const handleSuggestionClick = async (text: string) => {
   const handleApproveTransaction = async () => {
     if (!pendingTransaction) return
     
+    console.log('🟢 Approve clicked, pendingTransaction:', pendingTransaction)
     const { nluResult } = pendingTransaction
+    console.log('🟢 nluResult:', nluResult)
+    console.log('🟢 nluResult.intent:', nluResult?.intent)
+    console.log('🟢 nluResult.entities:', nluResult?.entities)
+    
     setIsTyping(true)
     
     try {
@@ -722,6 +743,7 @@ const handleSuggestionClick = async (text: string) => {
             reply = "❌ Transaction signing not available"
             break
           }
+          console.log('🔵 Executing bSOL stake with amount:', nluResult.entities.amount)
           reply = await handleStakeToBSOLCommand(
             `stake ${nluResult.entities.amount} sol to bsol`,
             {
@@ -730,6 +752,7 @@ const handleSuggestionClick = async (text: string) => {
               connection,
             }
           )
+          console.log('🔵 bSOL stake reply:', reply)
           break
           
         case INTENTS.UNSTAKE_NATIVE:
@@ -755,6 +778,8 @@ const handleSuggestionClick = async (text: string) => {
             reply = "❌ Transaction signing not available"
             break
           }
+          console.log('🔵 Executing bSOL unstake with amount:', nluResult.entities.amount)
+          console.log('🔵 Building command:', `unstake ${nluResult.entities.amount} bsol`)
           reply = await handleStakeToBSOLCommand(
             `unstake ${nluResult.entities.amount} bsol`,
             {
@@ -763,6 +788,7 @@ const handleSuggestionClick = async (text: string) => {
               connection,
             }
           )
+          console.log('🔵 bSOL unstake reply:', reply)
           break
           
         case INTENTS.SEND:
@@ -793,24 +819,26 @@ const handleSuggestionClick = async (text: string) => {
           } else if (pendingTransaction.token === 'msol') {
             // Fetch mSOL token balance
             const { PublicKey } = await import('@solana/web3.js')
-            const { getAssociatedTokenAddress } = await import('@solana/spl-token')
-            const mSOL_MINT = new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So')
+            const marinadeState = { mSolMint: { address: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So') } }
             try {
-              const msolAta = await getAssociatedTokenAddress(mSOL_MINT, publicKey)
-              const tokenBalance = await connection.getTokenAccountBalance(msolAta)
-              remainingBalance = parseFloat(tokenBalance.value.amount) / Math.pow(10, tokenBalance.value.decimals)
+              const msolAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                mint: marinadeState.mSolMint.address,
+              })
+              const accountInfo = msolAccounts.value[0]?.account.data.parsed.info.tokenAmount
+              remainingBalance = parseFloat(accountInfo?.uiAmountString || '0')
             } catch {
               remainingBalance = 0
             }
           } else if (pendingTransaction.token === 'bsol') {
             // Fetch bSOL token balance
             const { PublicKey } = await import('@solana/web3.js')
-            const { getAssociatedTokenAddress } = await import('@solana/spl-token')
             const bSOL_MINT = new PublicKey('bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1')
             try {
-              const bsolAta = await getAssociatedTokenAddress(bSOL_MINT, publicKey)
-              const tokenBalance = await connection.getTokenAccountBalance(bsolAta)
-              remainingBalance = parseFloat(tokenBalance.value.amount) / Math.pow(10, tokenBalance.value.decimals)
+              const bsolAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                mint: bSOL_MINT,
+              })
+              const accountInfo = bsolAccounts.value[0]?.account.data.parsed.info.tokenAmount
+              remainingBalance = parseFloat(accountInfo?.uiAmountString || '0')
             } catch {
               remainingBalance = 0
             }
@@ -949,14 +977,19 @@ const handleSuggestionClick = async (text: string) => {
       console.log('🚀 Executing deactivate transaction on account...')
       
       // Import required Solana modules
-      const { Connection, Transaction, StakeProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js')
+      const { Connection, Transaction, StakeProgram, LAMPORTS_PER_SOL, PublicKey: SolanaPublicKey } = await import('@solana/web3.js')
       const connection = new Connection('https://api.devnet.solana.com', 'confirmed')
+      
+      // Convert stakePubkey to PublicKey if it's a string
+      const stakePubkey = typeof selectedAccount.stakePubkey === 'string' 
+        ? new SolanaPublicKey(selectedAccount.stakePubkey)
+        : selectedAccount.stakePubkey
       
       // Build deactivate transaction
       const latestBlockhash = await connection.getLatestBlockhash()
       const tx = new Transaction().add(
         StakeProgram.deactivate({
-          stakePubkey: selectedAccount.stakePubkey,
+          stakePubkey: stakePubkey,
           authorizedPubkey: publicKey,
         })
       )
@@ -1085,7 +1118,7 @@ const handleSuggestionClick = async (text: string) => {
   return (
     <Card className="flex flex-col h-full max-h-[800px] w-full bg-transparent border-transparent rounded-xl overflow-hidden shadow-none relative">
       {/* Messages */}
-      <ScrollArea className="flex-grow p-4 relative z-10 h-[460px] md:h-[940px] scroll-smooth">
+      <ScrollArea className="flex-grow p-4 relative z-10 h-[400px] md:h-[460px] scroll-smooth">
         <div className="space-y-6">
           <AnimatePresence>
             {messages.filter(msg => msg.content.trim() !== "" || msg.transactionData || msg.stakeAccountsData).map((msg) => (
@@ -1247,7 +1280,7 @@ const handleSuggestionClick = async (text: string) => {
       </motion.div>
 
       {/* Input */}
-      <motion.div className="px-4 pt-1 pb-4 border-transparent bg-transparent relative z-10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+      <motion.div className="px-4 pt-1 pb-2 border-transparent bg-transparent relative z-10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
         <div className="flex space-x-2">
           <div className="relative flex-grow">
             <motion.div className={`rounded-xl overflow-hidden ${isInputFocused ? "ring-2 ring-purple-500" : ""}`} transition={{ duration: 0.3 }}>
