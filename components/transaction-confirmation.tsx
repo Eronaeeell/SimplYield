@@ -18,6 +18,7 @@ export type PendingTransaction = {
   transactionSignature?: string
   remainingBalance?: number
   nluResult?: any
+  errorMessage?: string
 }
 
 type TransactionConfirmationProps = {
@@ -123,6 +124,18 @@ export function TransactionConfirmation({
             </div>
           )}
 
+          {/* Error Message (for failed status) */}
+          {transaction.status === 'failed' && (
+            <div className="text-center py-3 border-t border-red-900/50 mt-2 bg-red-950/20 rounded-lg">
+              <p className="text-xs text-red-400 mb-2 font-semibold">❌ Transaction Failed</p>
+              {transaction.errorMessage && (
+                <p className="text-xs text-slate-400 px-3">
+                  {transaction.errorMessage}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Action Buttons */}
           {transaction.status === 'success' ? (
             <div className="flex justify-center pt-2">
@@ -132,6 +145,16 @@ export function TransactionConfirmation({
                 className="border border-blue-600 bg-transparent hover:bg-blue-700/50 text-blue-400 hover:text-blue-300 transition-all duration-200 px-8"
               >
                 View Details
+              </Button>
+            </div>
+          ) : transaction.status === 'failed' ? (
+            <div className="flex justify-center pt-2">
+              <Button
+                onClick={onDecline}
+                variant="outline"
+                className="border border-red-600 bg-transparent hover:bg-red-700/50 text-red-400 hover:text-red-300 transition-all duration-200 px-8"
+              >
+                Close
               </Button>
             </div>
           ) : isEditing ? (

@@ -52,20 +52,21 @@ export function PortfolioSidebar({ isOpen, onClose }: PortfolioSidebarProps) {
   const totalBalance = portfolioData?.totalSOLEquivalent ?? 0
   const totalValueUSD = portfolioData?.totalValueUSD ?? 0
 
-  const portfolioAssets = portfolioData?.assets.map(asset => ({
-    id: asset.symbol.toLowerCase(),
-    name: asset.symbol === 'SOL' ? 'SOL (Liquidity)' : asset.symbol === 'STAKED_SOL' ? 'SOL' : asset.symbol,
-    value: asset.amount,
-    price: asset.priceUSD,
-    apy: asset.apy ?? 0,
-    color: asset.symbol === 'SOL' ? '#8b5cf6' : 
-           asset.symbol === 'STAKED_SOL' ? '#6b7280' :
-           asset.symbol === 'bSOL' ? '#f97316' : 
-           asset.symbol === 'mSOL' ? '#22c55e' : 
-           asset.symbol === 'jitoSOL' ? '#3b82f6' : '#6b7280',
-    percentage: asset.percentage,
-    valueUSD: asset.valueUSD,
-  })) ?? []
+  const portfolioAssets = portfolioData?.assets
+    .filter(asset => asset.symbol !== 'STAKED_SOL') // Remove staked SOL from asset list
+    .map(asset => ({
+      id: asset.symbol.toLowerCase(),
+      name: asset.symbol === 'SOL' ? 'SOL (Liquidity)' : asset.symbol,
+      value: asset.amount,
+      price: asset.priceUSD,
+      apy: asset.apy ?? 0,
+      color: asset.symbol === 'SOL' ? '#8b5cf6' : 
+             asset.symbol === 'bSOL' ? '#f97316' : 
+             asset.symbol === 'mSOL' ? '#22c55e' : 
+             asset.symbol === 'jitoSOL' ? '#3b82f6' : '#6b7280',
+      percentage: asset.percentage,
+      valueUSD: asset.valueUSD,
+    })) ?? []
 
   return (
     <>

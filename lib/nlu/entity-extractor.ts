@@ -12,7 +12,8 @@ const AMOUNT_PATTERN = /(\d+(?:\.\d+)?)/;
 const SOL_PATTERN = /\b(sol|solana|native)\b/i;
 const MSOL_PATTERN = /\b(msol|marinade)\b/i;
 const BSOL_PATTERN = /\b(bsol|blaze(?:stake)?)\b/i;
-const ADDRESS_PATTERN = /\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/;
+// Support both Solana (base58) and Ethereum-style (0x) addresses
+const ADDRESS_PATTERN = /\b(?:0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})\b/;
 const DURATION_PATTERN = /\b(\d+\s*(?:days?|weeks?|months?|years?))\b/i;
 const RISK_PATTERN = /\b(low|medium|high)(?:\s+risk)?\b/i;
 
@@ -61,7 +62,7 @@ export const extractEntities = (text: string): ExtractedEntities => {
   // Extract address
   const addressMatch = text.match(ADDRESS_PATTERN);
   if (addressMatch) {
-    entities.address = addressMatch[1];
+    entities.address = addressMatch[0];
   }
   
   // Extract duration

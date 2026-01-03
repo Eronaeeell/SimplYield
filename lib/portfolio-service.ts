@@ -87,11 +87,20 @@ async function fetchSOLBalance(
     const balance = await connection.getBalance(walletPubkey);
     const liquidSOL = balance / LAMPORTS_PER_SOL;
 
-    // Get staked SOL from stake accounts
+    // Get staked SOL from stake accounts (only active accounts with balance)
     const stakeAccounts = await getUserStakeAccounts(walletPubkey, connection);
+    console.log('📊 Stake accounts found:', stakeAccounts.length);
     const stakedSOL = stakeAccounts.reduce((total, account) => {
-      return total + account.lamports / LAMPORTS_PER_SOL;
+      const accountSOL = account.lamports / LAMPORTS_PER_SOL;
+      console.log('  - Stake account:', account.stakePubkey.toString().slice(0, 8), accountSOL.toFixed(4), 'SOL, status:', account.status);
+      // Only count accounts with balance > 0.01 SOL (filter out dust/empty accounts)
+      if (accountSOL > 0.01) {
+        return total + accountSOL;
+      }
+      return total;
     }, 0);
+    console.log('📊 Total staked SOL (filtered):', stakedSOL.toFixed(4));
+    console.log('📊 Liquid SOL:', liquidSOL.toFixed(4));
 
     return {
       liquid: liquidSOL,
@@ -136,20 +145,26 @@ export async function getUserPortfolio(
     const msolValue = splBalances.msol * msolPrice;
     const bsolValue = splBalances.bsol * bsolPrice;
     const jitosolValue = splBalances.jitosol * jitosolPrice;
-    const totalValue = liquidSolValue + stakedSolValue + msolValue + bsolValue + jitosolValue;
+    
+    // Total balance is sum of actual token amounts (wallet SOL + bSOL + mSOL)
+    const totalSOLAmount = solBalance.liquid + splBalances.bsol + splBalances.msol + splBalances.jitosol;
+    const totalValue = totalSOLAmount * solPrice;
+    
+    // Total for percentage calculation includes all assets
+    const totalValueForPercentage = liquidSolValue + stakedSolValue + msolValue + bsolValue + jitosolValue;
 
     // Build asset list
     const assets: TokenBalance[] = [];
 
-    // Add liquid SOL (wallet balance) with 6.37% APY
+    // Add liquid SOL (wallet balance) - shown but not counted in portfolio total
     if (solBalance.liquid > 0) {
       assets.push({
         symbol: 'SOL',
         amount: solBalance.liquid,
         valueUSD: liquidSolValue,
-        percentage: totalValue > 0 ? (liquidSolValue / totalValue) * 100 : 0,
+        percentage: totalValueForPercentage > 0 ? (liquidSolValue / totalValueForPercentage) * 100 : 0,
         priceUSD: solPrice,
-        apy: 6.37, // Fixed liquid SOL APY
+        apy: 0, // Wallet SOL doesn't earn APY
         change24h: prices[TOKEN_IDS.SOL]?.usd_24h_change,
       });
     }
@@ -160,7 +175,7 @@ export async function getUserPortfolio(
         symbol: 'STAKED_SOL',
         amount: solBalance.staked,
         valueUSD: stakedSolValue,
-        percentage: totalValue > 0 ? (stakedSolValue / totalValue) * 100 : 0,
+        percentage: totalValueForPercentage > 0 ? (stakedSolValue / totalValueForPercentage) * 100 : 0,
         priceUSD: solPrice,
         apy: apys.sol,
         change24h: prices[TOKEN_IDS.SOL]?.usd_24h_change,
@@ -172,7 +187,7 @@ export async function getUserPortfolio(
         symbol: 'mSOL',
         amount: splBalances.msol,
         valueUSD: msolValue,
-        percentage: totalValue > 0 ? (msolValue / totalValue) * 100 : 0,
+        percentage: totalValueForPercentage > 0 ? (msolValue / totalValueForPercentage) * 100 : 0,
         priceUSD: msolPrice,
         apy: apys.msol,
         change24h: prices[TOKEN_IDS.MSOL]?.usd_24h_change,
@@ -184,7 +199,7 @@ export async function getUserPortfolio(
         symbol: 'bSOL',
         amount: splBalances.bsol,
         valueUSD: bsolValue,
-        percentage: totalValue > 0 ? (bsolValue / totalValue) * 100 : 0,
+        percentage: totalValueForPercentage > 0 ? (bsolValue / totalValueForPercentage) * 100 : 0,
         priceUSD: bsolPrice,
         apy: apys.bsol,
         change24h: prices[TOKEN_IDS.BSOL]?.usd_24h_change,
@@ -196,7 +211,7 @@ export async function getUserPortfolio(
         symbol: 'jitoSOL',
         amount: splBalances.jitosol,
         valueUSD: jitosolValue,
-        percentage: totalValue > 0 ? (jitosolValue / totalValue) * 100 : 0,
+        percentage: totalValueForPercentage > 0 ? (jitosolValue / totalValueForPercentage) * 100 : 0,
         priceUSD: jitosolPrice,
         apy: 7.2, // Default jitoSOL APY
         change24h: prices[TOKEN_IDS.JITOSOL]?.usd_24h_change,
@@ -208,7 +223,7 @@ export async function getUserPortfolio(
 
     return {
       totalValueUSD: totalValue,
-      totalSOLEquivalent: totalValue / (solPrice || 1),
+      totalSOLEquivalent: totalSOLAmount,
       liquidSOL: solBalance.liquid, // Add liquid SOL for display
       liquidSOLValueUSD: liquidSolValue, // Add liquid SOL value
       assets,

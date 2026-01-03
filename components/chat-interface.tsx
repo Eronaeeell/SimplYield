@@ -808,14 +808,23 @@ const handleSuggestionClick = async (text: string) => {
         }
       }
       
-      // Fetch updated balance after transaction
+      // Fetch real balance from blockchain (for success case)
       let remainingBalance: number | undefined
       if (publicKey && connection) {
         try {
-          // Get balance based on the token type
+          // Get balance based on the token type and transaction type
           if (pendingTransaction.token === 'sol') {
-            const balance = await connection.getBalance(publicKey)
-            remainingBalance = balance / 1_000_000_000 // Convert lamports to SOL
+            // For native SOL staking, show staked SOL balance
+            if (pendingTransaction.type === 'stake') {
+              const stakeAccounts = await getUserStakeAccounts(publicKey, connection)
+              remainingBalance = stakeAccounts.reduce((total, account) => {
+                return total + account.lamports / 1_000_000_000
+              }, 0)
+            } else {
+              // For unstaking or sending SOL, show wallet balance
+              const balance = await connection.getBalance(publicKey)
+              remainingBalance = balance / 1_000_000_000 // Convert lamports to SOL
+            }
           } else if (pendingTransaction.token === 'msol') {
             // Fetch mSOL token balance
             const { PublicKey } = await import('@solana/web3.js')
@@ -867,14 +876,84 @@ const handleSuggestionClick = async (text: string) => {
     } catch (error: any) {
       console.error('Transaction execution error:', error)
       
+      // Extract error message
+      let errorMessage = 'Unknown error occurred'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+      
+      // Fetch real balance from blockchain even when transaction fails
+      let remainingBalance: number | undefined
+      if (publicKey && connection) {
+        try {
+          // Get balance based on the token type and transaction type
+          if (pendingTransaction.token === 'sol') {
+            // For native SOL staking, show staked SOL balance
+            if (pendingTransaction.type === 'stake') {
+              const stakeAccounts = await getUserStakeAccounts(publicKey, connection)
+              remainingBalance = stakeAccounts.reduce((total, account) => {
+                return total + account.lamports / 1_000_000_000
+              }, 0)
+            } else {
+              // For unstaking or sending SOL, show wallet balance
+              const balance = await connection.getBalance(publicKey)
+              remainingBalance = balance / 1_000_000_000 // Convert lamports to SOL
+            }
+          } else if (pendingTransaction.token === 'msol') {
+            // Fetch mSOL token balance
+            const { PublicKey } = await import('@solana/web3.js')
+            const marinadeState = { mSolMint: { address: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So') } }
+            try {
+              const msolAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                mint: marinadeState.mSolMint.address,
+              })
+              const accountInfo = msolAccounts.value[0]?.account.data.parsed.info.tokenAmount
+              remainingBalance = parseFloat(accountInfo?.uiAmountString || '0')
+            } catch {
+              remainingBalance = 0
+            }
+          } else if (pendingTransaction.token === 'bsol') {
+            // Fetch bSOL token balance
+            const { PublicKey } = await import('@solana/web3.js')
+            const bSOL_MINT = new PublicKey('bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1')
+            try {
+              const bsolAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                mint: bSOL_MINT,
+              })
+              const accountInfo = bsolAccounts.value[0]?.account.data.parsed.info.tokenAmount
+              remainingBalance = parseFloat(accountInfo?.uiAmountString || '0')
+            } catch {
+              remainingBalance = 0
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch balance after error:', err)
+        }
+      }
+      
       // Update transaction status to failed (keep card visible in messages)
       setMessages((prev) => 
         prev.map(msg => 
           msg.transactionData?.id === pendingTransaction.id
-            ? { ...msg, transactionData: { ...pendingTransaction, status: 'failed' as const } }
+            ? { ...msg, transactionData: { ...pendingTransaction, status: 'failed' as const, errorMessage, remainingBalance } }
             : msg
         )
       )
+      
+      // Add error message to chat immediately
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: `❌ **Transaction Failed**\n\n${errorMessage}`,
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ])
     } finally {
       setIsTyping(false)
     }
