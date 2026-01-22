@@ -51,12 +51,14 @@ export const generateTrainingData = (): TrainingExample[] => {
     "stake {amount} in native sol",
     "can i stake {amount} sol",
     "help me stake {amount} sol",
+    "help me to stake {amount} sol",
+    "help me with staking {amount} sol",
     "i wanna stake {amount} sol",
     "could you stake {amount} sol",
     "stake about {amount} sol",
   ];
 
-  const amounts = [0.5, 1, 1.5, 2, 5, 10, 15, 20, 50, 100];
+  const amounts = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 7, 10, 15, 20, 25, 30, 50, 100];
   
   stakeNativeTemplates.forEach(template => {
     amounts.forEach(amount => {
@@ -87,6 +89,9 @@ export const generateTrainingData = (): TrainingExample[] => {
     "stake {amount} sol for msol",
     "can i stake {amount} sol to msol",
     "help me stake {amount} sol in msol",
+    "help me to stake {amount} sol in msol",
+    "help me stake {amount} to msol",
+    "help me with staking {amount} sol to msol",
     "i wanna stake {amount} to msol",
     "could you stake {amount} sol into msol",
     "can we do {amount} marinade",
@@ -130,6 +135,9 @@ export const generateTrainingData = (): TrainingExample[] => {
     "stake {amount} sol for bsol",
     "can i stake {amount} sol to bsol",
     "help me stake {amount} sol in bsol",
+    "help me to stake {amount} sol in bsol",
+    "help me stake {amount} to bsol",
+    "help me with staking {amount} sol to bsol",
     "i wanna stake {amount} to bsol",
     "could you stake {amount} sol into bsol",
   ];
@@ -472,9 +480,9 @@ export const trainingDataset = generateTrainingData();
 export const addTypoVariations = (data: TrainingExample[]): TrainingExample[] => {
   const withTypos = [...data];
   const typoMappings: Record<string, string[]> = {
-    'stake': ['stak', 'stke', 'satke', 'steak'],
-    'unstake': ['unstak', 'unstke', 'unstack'],
-    'send': ['snd', 'sed', 'sned'],
+    'stake': ['stak', 'stke', 'satke', 'steak', 'srake', 'stqke', 'stakr'],
+    'unstake': ['unstak', 'unstke', 'unstack', 'unstaje', 'unstakr'],
+    'send': ['snd', 'sed', 'sned', 'semd'],
     'sol': ['Sol', 'SOl', 'soL'],
     'msol': ['mSol', 'MSOL', 'msol', 'mSol'],
     'bsol': ['bSol', 'BSOL', 'bsol', 'bSol'],

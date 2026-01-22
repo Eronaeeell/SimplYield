@@ -2,6 +2,8 @@
 import axios from "axios";
 import { fetchTokenPrice, fetchTokenMarketData, TOKEN_IDS } from "@/lib/coingecko-service";
 import { PortfolioData, formatPortfolioForAI, analyzePortfolio } from "@/lib/portfolio-service";
+import { getNLUService } from "@/lib/nlu/nlu-service";
+import { INTENTS } from "@/lib/nlu/training-data";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -143,6 +145,81 @@ export async function chatWithSolanaBot(
   portfolioData?: PortfolioData | null
 ): Promise<{ reply: string; updatedMessages: Message[] }> {
   const conversation: Message[] = [...prevMessages];
+  
+  // First, try NLU service for intent detection
+  const nluService = getNLUService();
+  let nluResult = null;
+  try {
+    nluResult = await nluService.processInput(userInput);
+    console.log('🧠 NLU Result:', {
+      text: userInput,
+      intent: nluResult.intent,
+      confidence: nluResult.confidence,
+      entities: nluResult.entities,
+      valid: nluResult.valid,
+      errorMessage: nluResult.errorMessage
+    });
+  } catch (error) {
+    console.error('NLU processing error:', error);
+  }
+  
+  // Handle NLU-detected staking/unstaking intents with high confidence
+  if (nluResult && nluResult.confidence >= 0.4) {
+    const { intent, entities, valid, errorMessage } = nluResult;
+    
+    // Handle stake intents
+    if (intent === INTENTS.STAKE_NATIVE && valid && entities.amount) {
+      const reply = `🚀 **Native SOL Staking**\n\nI'll help you stake **${entities.amount} SOL** to a native validator.\n\n**Next Steps:**\n1. Click the "Stake SOL" button in the interface\n2. Enter the amount: ${entities.amount} SOL\n3. Confirm the transaction in your wallet\n\n**Details:**\n- APY: ~7.2%\n- Lock period: Warm-up period (~2-3 days)\n- Rewards: Auto-compounding\n\n> ⚠️ Unstaking takes 2-3 days (cooldown period)`;
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    
+    if (intent === INTENTS.STAKE_MSOL && valid && entities.amount) {
+      const reply = `🚀 **Liquid Staking with Marinade (mSOL)**\n\nI'll help you stake **${entities.amount} SOL** to get **mSOL** tokens.\n\n**Next Steps:**\n1. Click the "Stake to mSOL" button\n2. Enter the amount: ${entities.amount} SOL\n3. Confirm the transaction\n\n**Benefits:**\n- APY: 6.45% (fixed)\n- Instant liquidity: Use mSOL in DeFi\n- No lock period\n- Auto-compounding rewards\n\n> 💡 mSOL can be used across Solana DeFi while earning staking rewards!`;
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    
+    if (intent === INTENTS.STAKE_BSOL && valid && entities.amount) {
+      const reply = `🚀 **Liquid Staking with BlazeStake (bSOL)**\n\nI'll help you stake **${entities.amount} SOL** to get **bSOL** tokens.\n\n**Next Steps:**\n1. Click the "Stake to bSOL" button\n2. Enter the amount: ${entities.amount} SOL\n3. Confirm the transaction\n\n**Benefits:**\n- APY: ~6.42%\n- Instant liquidity: Use bSOL in DeFi\n- No lock period\n- Auto-compounding rewards\n\n> 💡 bSOL can be traded or used in DeFi protocols while earning staking rewards!`;
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    
+    // Handle unstake intents
+    if (intent === INTENTS.UNSTAKE_NATIVE) {
+      const reply = `🔓 **Unstake Native SOL**\n\nTo unstake your native SOL:\n\n**Steps:**\n1. Type "unstake" to see your active stake accounts\n2. I'll show you a list like:\n   - 1. 5.0 SOL → 7gy7..019e\n   - 2. 10.0 SOL → Gf8s..2eh7\n3. Reply with "unstake [number]" to select which account\n\n> ⚠️ Cooldown period: 2-3 days before SOL is available\n\nReady? Type "unstake" to see your stake accounts.`;
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    
+    if (intent === INTENTS.UNSTAKE_MSOL) {
+      const reply = `🔓 **Unstake mSOL**\n\nTo unstake your mSOL tokens:\n\n**Steps:**\n1. Type "unstake mSOL"\n2. I'll show your available mSOL balance\n3. Reply with "unstake [amount] mSOL"\n\n**Options:**\n- Instant unstake (small fee)\n- Delayed unstake (no fee, wait 1 epoch)\n\n> 💡 You can also just swap mSOL back to SOL on DEXes!`;
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    
+    if (intent === INTENTS.UNSTAKE_BSOL) {
+      const reply = `🔓 **Unstake bSOL**\n\nTo unstake your bSOL tokens:\n\n**Steps:**\n1. Type "unstake bSOL"\n2. I'll show your available bSOL balance\n3. Reply with "unstake [amount] bSOL"\n\n**Process:**\n- Exchange bSOL back to SOL\n- Usually instant\n- Small fee may apply\n\n> 💡 Alternatively, swap bSOL on DEXes for instant conversion!`;
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: reply });
+      return { reply, updatedMessages: conversation };
+    }
+    
+    // Handle invalid entity extraction (missing amount, etc.)
+    if (!valid && errorMessage) {
+      conversation.push({ role: "user", content: userInput });
+      conversation.push({ role: "assistant", content: errorMessage });
+      return { reply: errorMessage, updatedMessages: conversation };
+    }
+  }
+  
+  // Fallback to old detectIntent for price/market queries
   const intentInfo = detectIntent(userInput);
 
   // Handle portfolio analysis queries - let AI analyze instead of using templates

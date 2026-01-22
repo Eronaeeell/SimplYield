@@ -250,8 +250,8 @@ export function ChatInterface() {
         pendingIntent: pendingIntent ? 'yes' : 'no'
       })
 
-      // If confidence is too low (< 50%), skip NLU and let AI chatbot handle it
-      if (nluResult.confidence < 0.5 && !pendingIntent) {
+      // If confidence is too low (< 40%), skip NLU and let AI chatbot handle it
+      if (nluResult.confidence < 0.4 && !pendingIntent) {
         console.log('⚠️ Low confidence, passing to AI chatbot')
         throw new Error('low_confidence') // Jump to chatbot
       }
