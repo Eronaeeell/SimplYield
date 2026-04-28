@@ -302,7 +302,7 @@ export async function chatWithSolanaBot(
       const response = await axios.post(
         OPENROUTER_URL,
         {
-          model: "tngtech/deepseek-r1t2-chimera:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [systemMessage, ...conversation],
           temperature: 0.7,
         },
